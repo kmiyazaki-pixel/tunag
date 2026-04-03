@@ -14,7 +14,7 @@ services:
           name: tunag-lite-backend
           property: hostport
 
-  - type: pserv
+  - type: web
     name: tunag-lite-backend
     runtime: docker
     region: singapore
