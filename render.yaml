@@ -24,15 +24,14 @@ services:
     envVars:
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
-          name: tunag-lite-db
+          name: air-hockey-db
           property: connectionString
       - key: SPRING_PROFILES_ACTIVE
         value: render
       - key: APP_HOSTS
         value: "*"
 
-databases:
-  - name: tunag-lite-db
+
     plan: free
     region: singapore
     databaseName: tunaglite
