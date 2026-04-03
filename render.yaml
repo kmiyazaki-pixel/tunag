@@ -31,8 +31,3 @@ services:
       - key: APP_HOSTS
         value: "*"
 
-
-    plan: free
-    region: singapore
-    databaseName: tunaglite
-    user: tunaglite
