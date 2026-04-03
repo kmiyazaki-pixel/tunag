@@ -10,7 +10,7 @@ services:
     envVars:
       - key: NEXT_PUBLIC_API_PORT
         fromService:
-          type: pserv
+          type: web
           name: tunag-lite-backend
           property: hostport
 
@@ -21,6 +21,7 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
+    healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
