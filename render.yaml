@@ -8,7 +8,7 @@ services:
     plan: free
     healthCheckPath: /
     envVars:
-      - key: BACKEND_HOSTPORT
+      - key: NEXT_PUBLIC_API_PORT
         fromService:
           type: pserv
           name: tunag-lite-backend
@@ -21,7 +21,6 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
-    healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
@@ -29,8 +28,8 @@ services:
           property: connectionString
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: APP_BOOTSTRAP_SAMPLE_DATA
-        value: true
+      - key: APP_HOSTS
+        value: "*"
 
 databases:
   - name: tunag-lite-db
