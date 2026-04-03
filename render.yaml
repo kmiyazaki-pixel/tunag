@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: tunag-lite-frontend
+    runtime: docker
+    region: singapore
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: BACKEND_HOSTPORT
+        fromService:
+          type: pserv
+          name: tunag-lite-backend
+          property: hostport
+
+  - type: pserv
+    name: tunag-lite-backend
+    runtime: docker
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: tunag-lite-db
+          property: connectionString
+      - key: SPRING_PROFILES_ACTIVE
+        value: render
+      - key: APP_BOOTSTRAP_SAMPLE_DATA
+        value: true
+
+databases:
+  - name: tunag-lite-db
+    plan: free
+    region: singapore
+    databaseName: tunaglite
+    user: tunaglite
