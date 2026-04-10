@@ -20,7 +20,11 @@ function backendBaseUrl(): string {
   if (!hostport) {
     throw new Error("BACKEND_HOSTPORT is not defined");
   }
-  return `http://${hostport}`;
+  // https対応
+  if (hostport.startsWith("http")) {
+    return hostport;
+  }
+  return `https://${hostport}`;
 }
 
 export async function fetchPosts(): Promise<Post[]> {
