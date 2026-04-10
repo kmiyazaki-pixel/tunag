@@ -13,7 +13,7 @@
     <groupId>com.example</groupId>
     <artifactId>tunag-lite</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <n>tunag-lite</n>
+    <name>tunag-lite</name>
     <description>TUNAG-like internal portal MVP</description>
 
     <properties>
