@@ -1,26 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { backendBaseUrl } from "@/lib/backend";
 
-function backendBaseUrl(): string {
-  const hostport = process.env.BACKEND_HOSTPORT;
-  if (!hostport) throw new Error("BACKEND_HOSTPORT is not defined");
-  if (hostport.startsWith("http")) return hostport;
-  return `https://${hostport}`;
-}
+type Params = {
+  params: Promise<{ id: string }>;
+};
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_: Request, { params }: Params) {
   const { id } = await params;
-  const body = await request.text();
+
   const response = await fetch(`${backendBaseUrl()}/api/posts/${id}/read`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body,
     cache: "no-store",
   });
 
-  if (response.status === 204) {
-    return new NextResponse(null, { status: 204 });
+  let data: unknown = null;
+  const text = await response.text();
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { message: text };
   }
 
-  const data = await response.json();
   return NextResponse.json(data, { status: response.status });
 }
