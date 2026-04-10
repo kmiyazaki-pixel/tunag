@@ -25,18 +25,18 @@ function baseUrl(): string {
 
 export async function fetchPosts(): Promise<Post[]> {
   const res = await fetch(`${baseUrl()}/api/posts`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch posts");
+  if (!res.ok) throw new Error(`fetchPosts failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchPost(id: string): Promise<Post> {
   const res = await fetch(`${baseUrl()}/api/posts/${id}`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch post");
+  if (!res.ok) throw new Error(`fetchPost failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchSummary(): Promise<Summary> {
   const res = await fetch(`${baseUrl()}/api/dashboard/summary`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch summary");
+  if (!res.ok) throw new Error(`fetchSummary failed: ${res.status}`);
   return res.json();
 }
