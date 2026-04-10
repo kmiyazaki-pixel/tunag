@@ -15,19 +15,18 @@ export type Summary = {
   totalReads: number;
 };
 
-function backendBaseUrl(): string {
-  const hostport = process.env.BACKEND_HOSTPORT;
-  if (!hostport) throw new Error("BACKEND_HOSTPORT is not defined");
-  if (hostport.startsWith("http")) return hostport;
-  return `https://${hostport}`;
-}
-
-async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
+async function fetchWithRetry(url: string, init?: RequestInit, retries = 3): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 25000);
-      const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+
+      const res = await fetch(url, {
+        cache: "no-store",
+        ...init,
+        signal: controller.signal,
+      });
+
       clearTimeout(timer);
       return res;
     } catch (e) {
@@ -35,23 +34,24 @@ async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
+
   throw new Error("fetch failed after retries");
 }
 
 export async function fetchPosts(): Promise<Post[]> {
-  const res = await fetchWithRetry(`${backendBaseUrl()}/api/posts`);
+  const res = await fetchWithRetry(`/api/posts`);
   if (!res.ok) throw new Error(`fetchPosts failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchPost(id: string): Promise<Post> {
-  const res = await fetchWithRetry(`${backendBaseUrl()}/api/posts/${id}`);
+  const res = await fetchWithRetry(`/api/posts/${id}`);
   if (!res.ok) throw new Error(`fetchPost failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchSummary(): Promise<Summary> {
-  const res = await fetchWithRetry(`${backendBaseUrl()}/api/dashboard/summary`);
+  const res = await fetchWithRetry(`/api/dashboard/summary`);
   if (!res.ok) throw new Error(`fetchSummary failed: ${res.status}`);
   return res.json();
 }
