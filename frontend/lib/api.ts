@@ -20,7 +20,6 @@ function backendBaseUrl(): string {
   if (!hostport) {
     throw new Error("BACKEND_HOSTPORT is not defined");
   }
-  // https対応
   if (hostport.startsWith("http")) {
     return hostport;
   }
@@ -28,19 +27,34 @@ function backendBaseUrl(): string {
 }
 
 export async function fetchPosts(): Promise<Post[]> {
-  const res = await fetch(`${backendBaseUrl()}/api/posts`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch posts");
+  const url = `${backendBaseUrl()}/api/posts`;
+  console.log("[fetchPosts] url:", url);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    console.error("[fetchPosts] status:", res.status, res.statusText);
+    throw new Error("Failed to fetch posts");
+  }
   return res.json();
 }
 
 export async function fetchPost(id: string): Promise<Post> {
-  const res = await fetch(`${backendBaseUrl()}/api/posts/${id}`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch post");
+  const url = `${backendBaseUrl()}/api/posts/${id}`;
+  console.log("[fetchPost] url:", url);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    console.error("[fetchPost] status:", res.status, res.statusText);
+    throw new Error("Failed to fetch post");
+  }
   return res.json();
 }
 
 export async function fetchSummary(): Promise<Summary> {
-  const res = await fetch(`${backendBaseUrl()}/api/dashboard/summary`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch summary");
+  const url = `${backendBaseUrl()}/api/dashboard/summary`;
+  console.log("[fetchSummary] url:", url);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    console.error("[fetchSummary] status:", res.status, res.statusText);
+    throw new Error("Failed to fetch summary");
+  }
   return res.json();
 }
