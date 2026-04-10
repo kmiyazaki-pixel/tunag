@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { fetchPosts, fetchSummary } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const [posts, summary] = await Promise.all([fetchPosts(), fetchSummary()]);
 
