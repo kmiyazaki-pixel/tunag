@@ -28,10 +28,6 @@ services:
     plan: free
     healthCheckPath: /actuator/health
     envVars:
-      - key: SPRING_DATASOURCE_URL
-        fromDatabase:
-          name: air-hockey-db
-          property: connectionString
       - key: SPRING_PROFILES_ACTIVE
         value: render
       - key: APP_HOSTS
