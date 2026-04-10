@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { fetchPost } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 function backendBaseUrl(): string {
   const hostport = process.env.BACKEND_HOSTPORT;
   if (!hostport) {
