@@ -15,28 +15,43 @@ export type Summary = {
   totalReads: number;
 };
 
-function baseUrl(): string {
-  if (typeof window === "undefined") {
-    const host = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 10000}`;
-    return host;
+function backendBaseUrl(): string {
+  const hostport = process.env.BACKEND_HOSTPORT;
+  if (!hostport) throw new Error("BACKEND_HOSTPORT is not defined");
+  if (hostport.startsWith("http")) return hostport;
+  return `https://${hostport}`;
+}
+
+async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 25000);
+      const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+      clearTimeout(timer);
+      return res;
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
   }
-  return "";
+  throw new Error("fetch failed after retries");
 }
 
 export async function fetchPosts(): Promise<Post[]> {
-  const res = await fetch(`${baseUrl()}/api/posts`, { cache: "no-store" });
+  const res = await fetchWithRetry(`${backendBaseUrl()}/api/posts`);
   if (!res.ok) throw new Error(`fetchPosts failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchPost(id: string): Promise<Post> {
-  const res = await fetch(`${baseUrl()}/api/posts/${id}`, { cache: "no-store" });
+  const res = await fetchWithRetry(`${backendBaseUrl()}/api/posts/${id}`);
   if (!res.ok) throw new Error(`fetchPost failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchSummary(): Promise<Summary> {
-  const res = await fetch(`${baseUrl()}/api/dashboard/summary`, { cache: "no-store" });
+  const res = await fetchWithRetry(`${backendBaseUrl()}/api/dashboard/summary`);
   if (!res.ok) throw new Error(`fetchSummary failed: ${res.status}`);
   return res.json();
 }
