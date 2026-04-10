@@ -14,10 +14,7 @@ services:
           name: tunag-lite-backend
           property: hostport
       - key: RENDER_EXTERNAL_URL
-        fromService:
-          type: web
-          name: tunag-lite-frontend
-          property: host
+        value: https://tunag-lite-frontend.onrender.com
 
   - type: web
     name: tunag-lite-backend
