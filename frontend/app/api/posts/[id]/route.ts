@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 function backendBaseUrl(): string {
   const hostport = process.env.BACKEND_HOSTPORT;
   if (!hostport) throw new Error("BACKEND_HOSTPORT is not defined");
-  return `http://${hostport}`;
+  if (hostport.startsWith("http")) return hostport;
+  return `https://${hostport}`;
 }
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
