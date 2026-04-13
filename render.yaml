@@ -6,7 +6,7 @@ services:
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
     plan: free
-    healthCheckPath: /api/posts
+    healthCheckPath: /
     envVars:
       - key: BACKEND_BASE_URL
         value: https://tunag-lite-backend.onrender.com
