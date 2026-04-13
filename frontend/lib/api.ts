@@ -1,4 +1,5 @@
-import { siteBaseUrl } from "@/lib/site";
+const siteBaseUrl = () =>
+  (process.env.RENDER_EXTERNAL_URL || "http://localhost:3000").replace(/\/$/, "");
 
 export type Post = {
   id: number;
@@ -17,7 +18,7 @@ export type Summary = {
   totalReads: number;
 };
 
-async function fetchWithRetry(url: string, init?: RequestInit, retries = 3): Promise<Response> {
+async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
       const controller = new AbortController();
@@ -25,7 +26,6 @@ async function fetchWithRetry(url: string, init?: RequestInit, retries = 3): Pro
 
       const res = await fetch(url, {
         cache: "no-store",
-        ...init,
         signal: controller.signal,
       });
 
@@ -36,7 +36,6 @@ async function fetchWithRetry(url: string, init?: RequestInit, retries = 3): Pro
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
-
   throw new Error("fetch failed after retries");
 }
 
