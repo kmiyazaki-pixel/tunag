@@ -1,3 +1,5 @@
+import { siteBaseUrl } from "@/lib/site";
+
 export type Post = {
   id: number;
   title: string;
@@ -39,19 +41,19 @@ async function fetchWithRetry(url: string, init?: RequestInit, retries = 3): Pro
 }
 
 export async function fetchPosts(): Promise<Post[]> {
-  const res = await fetchWithRetry(`/api/posts`);
+  const res = await fetchWithRetry(`${siteBaseUrl()}/api/posts`);
   if (!res.ok) throw new Error(`fetchPosts failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchPost(id: string): Promise<Post> {
-  const res = await fetchWithRetry(`/api/posts/${id}`);
+  const res = await fetchWithRetry(`${siteBaseUrl()}/api/posts/${id}`);
   if (!res.ok) throw new Error(`fetchPost failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchSummary(): Promise<Summary> {
-  const res = await fetchWithRetry(`/api/dashboard/summary`);
+  const res = await fetchWithRetry(`${siteBaseUrl()}/api/dashboard/summary`);
   if (!res.ok) throw new Error(`fetchSummary failed: ${res.status}`);
   return res.json();
 }
