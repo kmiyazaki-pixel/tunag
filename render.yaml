@@ -8,11 +8,8 @@ services:
     plan: free
     healthCheckPath: /api/posts
     envVars:
-      - key: BACKEND_HOSTPORT
-        fromService:
-          type: web
-          name: tunag-lite-backend
-          property: hostport
+      - key: BACKEND_BASE_URL
+        value: https://tunag-lite-backend.onrender.com
       - key: RENDER_EXTERNAL_URL
         value: https://tunag-lite-frontend.onrender.com
 
