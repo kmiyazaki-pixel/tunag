@@ -1,266 +1,231 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { fetchPosts, fetchSummary } from "@/lib/api";
+import { fetchPost } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage({
-  searchParams,
+async function markRead(id: string) {
+  "use server";
+
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
+
+  const response = await fetch(`${baseUrl}/api/posts/${id}/read`, {
+    method: "POST",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`markRead failed: ${response.status}`);
+  }
+
+  redirect("/");
+}
+
+export default async function PostDetailPage({
+  params,
 }: {
-  searchParams?: Promise<{ category?: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  const resolvedSearchParams = searchParams ? await searchParams : {};
-  const selectedCategory = resolvedSearchParams?.category ?? "すべて";
+  const { id } = await params;
+  const post = await fetchPost(id);
 
-  const [posts, summary] = await Promise.all([fetchPosts(), fetchSummary()]);
-
-  const categories = ["すべて", ...Array.from(new Set(posts.map((post) => post.category)))];
-
-  const filteredPosts =
-    selectedCategory === "すべて"
-      ? posts
-      : posts.filter((post) => post.category === selectedCategory);
+  const publishedAt = new Date(post.publishedAt).toLocaleString("ja-JP");
 
   return (
     <main className="container" style={{ paddingBottom: 48 }}>
       <Header />
 
-      <section
+      <div style={{ margin: "16px 0 24px" }}>
+        <Link
+          href="/"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            color: "#4b5563",
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          ← 一覧に戻る
+        </Link>
+      </div>
+
+      <article
+        className="card"
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 16,
-          margin: "24px 0 32px",
+          maxWidth: 960,
+          margin: "0 auto",
+          padding: 32,
+          borderRadius: 24,
+          background: "#fff",
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
         }}
       >
         <div
-          className="card"
           style={{
-            padding: 24,
-            borderRadius: 20,
-            background: "#ffffff",
-            boxShadow: "0 6px 20px rgba(15, 23, 42, 0.05)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 16,
+            flexWrap: "wrap",
+            marginBottom: 20,
           }}
         >
-          <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>投稿数</p>
-          <h2 style={{ margin: "8px 0 0", fontSize: 32, color: "#0f172a" }}>
-            {summary.totalPosts}
-          </h2>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "8px 14px",
+                borderRadius: 9999,
+                fontSize: 14,
+                fontWeight: 700,
+                background: post.required ? "#fee2e2" : "#eef2ff",
+                color: post.required ? "#b91c1c" : "#4338ca",
+              }}
+            >
+              {post.required ? "必読" : post.category}
+            </span>
+
+            {!post.required && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "8px 14px",
+                  borderRadius: 9999,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background: "#f3f4f6",
+                  color: "#374151",
+                }}
+              >
+                {post.category}
+              </span>
+            )}
+          </div>
+
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "#64748b",
+              whiteSpace: "nowrap",
+            }}
+          >
+            既読 {post.readCount}
+          </div>
         </div>
 
-        <div
-          className="card"
+        {post.imageUrl && (
+          <div
+            style={{
+              marginBottom: 24,
+              borderRadius: 20,
+              overflow: "hidden",
+              background: "#e5e7eb",
+              maxHeight: 420,
+            }}
+          >
+            <img
+              src={post.imageUrl}
+              alt={post.title}
+              style={{
+                width: "100%",
+                height: "100%",
+                maxHeight: 420,
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+          </div>
+        )}
+
+        <h1
           style={{
-            padding: 24,
-            borderRadius: 20,
-            background: "#ffffff",
-            boxShadow: "0 6px 20px rgba(15, 23, 42, 0.05)",
+            fontSize: 42,
+            lineHeight: 1.2,
+            margin: "0 0 20px",
+            color: "#0f172a",
+            fontWeight: 800,
           }}
         >
-          <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>必読投稿</p>
-          <h2 style={{ margin: "8px 0 0", fontSize: 32, color: "#b91c1c" }}>
-            {summary.requiredPosts}
-          </h2>
-        </div>
+          {post.title}
+        </h1>
 
-        <div
-          className="card"
-          style={{
-            padding: 24,
-            borderRadius: 20,
-            background: "#ffffff",
-            boxShadow: "0 6px 20px rgba(15, 23, 42, 0.05)",
-          }}
-        >
-          <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>既読登録数</p>
-          <h2 style={{ margin: "8px 0 0", fontSize: 32, color: "#0f172a" }}>
-            {summary.totalReads}
-          </h2>
-        </div>
-      </section>
-
-      <section style={{ marginBottom: 24 }}>
         <div
           style={{
             display: "flex",
-            gap: 10,
+            gap: 18,
             flexWrap: "wrap",
-            alignItems: "center",
+            color: "#64748b",
+            fontSize: 15,
+            marginBottom: 32,
+            paddingBottom: 20,
+            borderBottom: "1px solid #e5e7eb",
           }}
         >
-          {categories.map((category) => {
-            const active = selectedCategory === category;
-            const href =
-              category === "すべて"
-                ? "/"
-                : `/?category=${encodeURIComponent(category)}`;
-
-            return (
-              <Link
-                key={category}
-                href={href}
-                style={{
-                  textDecoration: "none",
-                  padding: "10px 16px",
-                  borderRadius: 9999,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  background: active ? "#111827" : "#f3f4f6",
-                  color: active ? "#ffffff" : "#374151",
-                  border: active ? "1px solid #111827" : "1px solid #e5e7eb",
-                }}
-              >
-                {category}
-              </Link>
-            );
-          })}
+          <span>投稿者: {post.author}</span>
+          <span>公開日: {publishedAt}</span>
+          <span>カテゴリ: {post.category}</span>
         </div>
+
+        <section
+          style={{
+            fontSize: 20,
+            lineHeight: 1.95,
+            color: "#111827",
+            whiteSpace: "pre-wrap",
+            minHeight: 180,
+          }}
+        >
+          {post.body}
+        </section>
 
         <div
           style={{
-            marginTop: 12,
-            color: "#64748b",
-            fontSize: 14,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
+            marginTop: 40,
+            paddingTop: 24,
+            borderTop: "1px solid #e5e7eb",
           }}
         >
-          {selectedCategory === "すべて"
-            ? `全 ${filteredPosts.length} 件`
-            : `「${selectedCategory}」 ${filteredPosts.length} 件`}
-        </div>
-      </section>
+          <form action={markRead.bind(null, id)}>
+            <button
+              type="submit"
+              style={{
+                border: "none",
+                borderRadius: 9999,
+                background: "#111827",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 16,
+                padding: "14px 24px",
+                cursor: "pointer",
+              }}
+            >
+              既読にする
+            </button>
+          </form>
 
-      <section style={{ display: "grid", gap: 20 }}>
-        {filteredPosts.map((post) => (
-          <article
-            key={post.id}
-            className="card"
+          <Link
+            href="/"
             style={{
-              padding: 24,
-              borderRadius: 24,
-              background: "#ffffff",
-              boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
-              border: post.required ? "1px solid #fecaca" : "1px solid #e5e7eb",
+              color: "#475569",
+              textDecoration: "none",
+              fontWeight: 600,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-                marginBottom: 14,
-              }}
-            >
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "7px 12px",
-                    borderRadius: 9999,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    background: post.required ? "#fee2e2" : "#eef2ff",
-                    color: post.required ? "#b91c1c" : "#4338ca",
-                  }}
-                >
-                  {post.required ? "必読" : post.category}
-                </span>
-
-                {!post.required && (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      padding: "7px 12px",
-                      borderRadius: 9999,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      background: "#f3f4f6",
-                      color: "#374151",
-                    }}
-                  >
-                    {post.category}
-                  </span>
-                )}
-              </div>
-
-              <span
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: "#64748b",
-                }}
-              >
-                既読 {post.readCount}
-              </span>
-            </div>
-
-            <h2
-              style={{
-                margin: "0 0 12px",
-                fontSize: 28,
-                lineHeight: 1.3,
-                color: "#0f172a",
-              }}
-            >
-              <Link
-                href={`/posts/${post.id}`}
-                style={{
-                  color: "inherit",
-                  textDecoration: "none",
-                }}
-              >
-                {post.title}
-              </Link>
-            </h2>
-
-            <p
-              style={{
-                margin: "0 0 18px",
-                color: "#334155",
-                fontSize: 16,
-                lineHeight: 1.8,
-              }}
-            >
-              {post.body.length > 140 ? `${post.body.slice(0, 140)}...` : post.body}
-            </p>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-                paddingTop: 14,
-                borderTop: "1px solid #e5e7eb",
-              }}
-            >
-              <div
-                style={{
-                  color: "#64748b",
-                  fontSize: 14,
-                }}
-              >
-                {post.author} / {new Date(post.publishedAt).toLocaleString("ja-JP")}
-              </div>
-
-              <Link
-                href={`/posts/${post.id}`}
-                style={{
-                  textDecoration: "none",
-                  color: "#111827",
-                  fontWeight: 700,
-                }}
-              >
-                続きを読む →
-              </Link>
-            </div>
-          </article>
-        ))}
-      </section>
+            投稿一覧へ戻る
+          </Link>
+        </div>
+      </article>
     </main>
   );
 }
