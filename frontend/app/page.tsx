@@ -4,8 +4,22 @@ import { fetchPosts, fetchSummary } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ category?: string }>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const selectedCategory = resolvedSearchParams?.category ?? "すべて";
+
   const [posts, summary] = await Promise.all([fetchPosts(), fetchSummary()]);
+
+  const categories = ["すべて", ...Array.from(new Set(posts.map((post) => post.category)))];
+
+  const filteredPosts =
+    selectedCategory === "すべて"
+      ? posts
+      : posts.filter((post) => post.category === selectedCategory);
 
   return (
     <main className="container" style={{ paddingBottom: 48 }}>
@@ -65,8 +79,58 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section style={{ marginBottom: 24 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          {categories.map((category) => {
+            const active = selectedCategory === category;
+            const href =
+              category === "すべて"
+                ? "/"
+                : `/?category=${encodeURIComponent(category)}`;
+
+            return (
+              <Link
+                key={category}
+                href={href}
+                style={{
+                  textDecoration: "none",
+                  padding: "10px 16px",
+                  borderRadius: 9999,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  background: active ? "#111827" : "#f3f4f6",
+                  color: active ? "#ffffff" : "#374151",
+                  border: active ? "1px solid #111827" : "1px solid #e5e7eb",
+                }}
+              >
+                {category}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div
+          style={{
+            marginTop: 12,
+            color: "#64748b",
+            fontSize: 14,
+          }}
+        >
+          {selectedCategory === "すべて"
+            ? `全 ${filteredPosts.length} 件`
+            : `「${selectedCategory}」 ${filteredPosts.length} 件`}
+        </div>
+      </section>
+
       <section style={{ display: "grid", gap: 20 }}>
-        {posts.map((post) => (
+        {filteredPosts.map((post) => (
           <article
             key={post.id}
             className="card"
