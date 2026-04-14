@@ -1,6 +1,3 @@
-const siteBaseUrl = () =>
-  (process.env.RENDER_EXTERNAL_URL || "http://localhost:3000").replace(/\/$/, "");
-
 export type Post = {
   id: number;
   title: string;
@@ -18,7 +15,10 @@ export type Summary = {
   totalReads: number;
 };
 
-async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
+const siteBaseUrl = () =>
+  (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
+
+async function fetchWithRetry(url: string, init?: RequestInit, retries = 3): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
       const controller = new AbortController();
@@ -26,6 +26,7 @@ async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
 
       const res = await fetch(url, {
         cache: "no-store",
+        ...init,
         signal: controller.signal,
       });
 
@@ -33,22 +34,45 @@ async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
       return res;
     } catch (e) {
       if (i === retries - 1) throw e;
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 1000));
     }
   }
+
   throw new Error("fetch failed after retries");
 }
 
 export async function fetchPosts(): Promise<Post[]> {
   const res = await fetchWithRetry(`${siteBaseUrl()}/api/posts`);
   if (!res.ok) throw new Error(`fetchPosts failed: ${res.status}`);
-  return res.json();
+  const data = await res.json();
+
+  return (data ?? []).map((post: any) => ({
+    id: post.id,
+    title: post.title,
+    body: post.body,
+    category: post.category,
+    required: post.required,
+    author: post.author,
+    publishedAt: post.published_at ?? post.publishedAt,
+    readCount: post.read_count ?? post.readCount ?? 0,
+  }));
 }
 
 export async function fetchPost(id: string): Promise<Post> {
   const res = await fetchWithRetry(`${siteBaseUrl()}/api/posts/${id}`);
   if (!res.ok) throw new Error(`fetchPost failed: ${res.status}`);
-  return res.json();
+  const post = await res.json();
+
+  return {
+    id: post.id,
+    title: post.title,
+    body: post.body,
+    category: post.category,
+    required: post.required,
+    author: post.author,
+    publishedAt: post.published_at ?? post.publishedAt,
+    readCount: post.read_count ?? post.readCount ?? 0,
+  };
 }
 
 export async function fetchSummary(): Promise<Summary> {
