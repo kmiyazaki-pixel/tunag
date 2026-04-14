@@ -152,6 +152,29 @@ export default async function HomePage({
                 cursor: "pointer",
               }}
             >
+              {post.imageUrl && (
+                <div
+                  style={{
+                    marginBottom: 18,
+                    borderRadius: 18,
+                    overflow: "hidden",
+                    height: 220,
+                    background: "#e5e7eb",
+                  }}
+                >
+                  <img
+                    src={post.imageUrl}
+                    alt={post.title}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                </div>
+              )}
+
               <div
                 style={{
                   display: "flex",
