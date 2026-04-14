@@ -131,44 +131,38 @@ export default async function HomePage({
 
       <section style={{ display: "grid", gap: 20 }}>
         {filteredPosts.map((post) => (
-          <article
+          <Link
             key={post.id}
-            className="card"
+            href={`/posts/${post.id}`}
             style={{
-              padding: 24,
-              borderRadius: 24,
-              background: "#ffffff",
-              boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
-              border: post.required ? "1px solid #fecaca" : "1px solid #e5e7eb",
+              textDecoration: "none",
+              color: "inherit",
+              display: "block",
             }}
           >
-            <div
+            <article
+              className="card"
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-                marginBottom: 14,
+                padding: 24,
+                borderRadius: 24,
+                background: "#ffffff",
+                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+                border: post.required ? "1px solid #fecaca" : "1px solid #e5e7eb",
+                transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                cursor: "pointer",
               }}
             >
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "7px 12px",
-                    borderRadius: 9999,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    background: post.required ? "#fee2e2" : "#eef2ff",
-                    color: post.required ? "#b91c1c" : "#4338ca",
-                  }}
-                >
-                  {post.required ? "必読" : post.category}
-                </span>
-
-                {!post.required && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  marginBottom: 14,
+                }}
+              >
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <span
                     style={{
                       display: "inline-flex",
@@ -176,89 +170,96 @@ export default async function HomePage({
                       padding: "7px 12px",
                       borderRadius: 9999,
                       fontSize: 13,
-                      fontWeight: 600,
-                      background: "#f3f4f6",
-                      color: "#374151",
+                      fontWeight: 700,
+                      background: post.required ? "#fee2e2" : "#eef2ff",
+                      color: post.required ? "#b91c1c" : "#4338ca",
                     }}
                   >
-                    {post.category}
+                    {post.required ? "必読" : post.category}
                   </span>
-                )}
+
+                  {!post.required && (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        padding: "7px 12px",
+                        borderRadius: 9999,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        background: "#f3f4f6",
+                        color: "#374151",
+                      }}
+                    >
+                      {post.category}
+                    </span>
+                  )}
+                </div>
+
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#64748b",
+                  }}
+                >
+                  既読 {post.readCount}
+                </span>
               </div>
 
-              <span
+              <h2
                 style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: "#64748b",
-                }}
-              >
-                既読 {post.readCount}
-              </span>
-            </div>
-
-            <h2
-              style={{
-                margin: "0 0 12px",
-                fontSize: 28,
-                lineHeight: 1.3,
-                color: "#0f172a",
-              }}
-            >
-              <Link
-                href={`/posts/${post.id}`}
-                style={{
-                  color: "inherit",
-                  textDecoration: "none",
+                  margin: "0 0 12px",
+                  fontSize: 28,
+                  lineHeight: 1.3,
+                  color: "#0f172a",
                 }}
               >
                 {post.title}
-              </Link>
-            </h2>
+              </h2>
 
-            <p
-              style={{
-                margin: "0 0 18px",
-                color: "#334155",
-                fontSize: 16,
-                lineHeight: 1.8,
-              }}
-            >
-              {post.body.length > 140 ? `${post.body.slice(0, 140)}...` : post.body}
-            </p>
+              <p
+                style={{
+                  margin: "0 0 18px",
+                  color: "#334155",
+                  fontSize: 16,
+                  lineHeight: 1.8,
+                }}
+              >
+                {post.body.length > 140 ? `${post.body.slice(0, 140)}...` : post.body}
+              </p>
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-                paddingTop: 14,
-                borderTop: "1px solid #e5e7eb",
-              }}
-            >
               <div
                 style={{
-                  color: "#64748b",
-                  fontSize: 14,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  paddingTop: 14,
+                  borderTop: "1px solid #e5e7eb",
                 }}
               >
-                {post.author} / {new Date(post.publishedAt).toLocaleString("ja-JP")}
-              </div>
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: 14,
+                  }}
+                >
+                  {post.author} / {new Date(post.publishedAt).toLocaleString("ja-JP")}
+                </div>
 
-              <Link
-                href={`/posts/${post.id}`}
-                style={{
-                  textDecoration: "none",
-                  color: "#111827",
-                  fontWeight: 700,
-                }}
-              >
-                続きを読む →
-              </Link>
-            </div>
-          </article>
+                <span
+                  style={{
+                    color: "#111827",
+                    fontWeight: 700,
+                  }}
+                >
+                  続きを読む →
+                </span>
+              </div>
+            </article>
+          </Link>
         ))}
       </section>
     </main>
