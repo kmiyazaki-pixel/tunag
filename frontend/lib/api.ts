@@ -7,6 +7,7 @@ export type Post = {
   author: string;
   publishedAt: string;
   readCount: number;
+  imageUrl?: string | null;
 };
 
 export type Summary = {
@@ -55,6 +56,7 @@ export async function fetchPosts(): Promise<Post[]> {
     author: post.author,
     publishedAt: post.published_at ?? post.publishedAt,
     readCount: post.read_count ?? post.readCount ?? 0,
+    imageUrl: post.image_url ?? post.imageUrl ?? null,
   }));
 }
 
@@ -72,6 +74,7 @@ export async function fetchPost(id: string): Promise<Post> {
     author: post.author,
     publishedAt: post.published_at ?? post.publishedAt,
     readCount: post.read_count ?? post.readCount ?? 0,
+    imageUrl: post.image_url ?? post.imageUrl ?? null,
   };
 }
 
