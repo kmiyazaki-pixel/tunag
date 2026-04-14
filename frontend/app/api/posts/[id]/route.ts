@@ -1,17 +1,50 @@
 import { NextResponse } from "next/server";
-import { backendBaseUrl } from "@/lib/backend";
+import { createClient } from "@supabase/supabase-js";
 
-type Params = {
-  params: Promise<{ id: string }>;
-};
-
-export async function GET(_: Request, { params }: Params) {
+export async function GET(
+  _: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const { id } = await params;
 
-  const response = await fetch(`${backendBaseUrl()}/api/posts/${id}`, {
-    cache: "no-store",
-  });
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  const data = await response.json();
-  return NextResponse.json(data, { status: response.status });
+  if (!supabaseUrl) {
+    return NextResponse.json(
+      { message: "NEXT_PUBLIC_SUPABASE_URL is not defined" },
+      { status: 500 }
+    );
+  }
+
+  if (!serviceRoleKey) {
+    return NextResponse.json(
+      { message: "SUPABASE_SERVICE_ROLE_KEY is not defined" },
+      { status: 500 }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  const { data, error } = await supabase
+    .from("posts")
+    .select("id, title, body, category, required, author, published_at, read_count, image_url")
+    .eq("id", Number(id))
+    .single();
+
+  if (error) {
+    return NextResponse.json({ message: error.message }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    id: data.id,
+    title: data.title,
+    body: data.body,
+    category: data.category,
+    required: data.required,
+    author: data.author,
+    publishedAt: data.published_at,
+    readCount: data.read_count,
+    imageUrl: data.image_url,
+  });
 }
