@@ -23,14 +23,26 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("posts")
-    .select("id, title, body, category, required, author, published_at, read_count, image_url")
+    .select(`
+      id,
+      title,
+      body,
+      category,
+      required,
+      author,
+      published_at,
+      read_count,
+      image_url,
+      post_reactions(count),
+      post_comments(count)
+    `)
     .order("published_at", { ascending: false });
 
   if (error) {
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
 
-  const posts = (data ?? []).map((post) => ({
+  const posts = (data ?? []).map((post: any) => ({
     id: post.id,
     title: post.title,
     body: post.body,
@@ -40,6 +52,8 @@ export async function GET() {
     publishedAt: post.published_at,
     readCount: post.read_count,
     imageUrl: post.image_url,
+    reactionCount: post.post_reactions?.[0]?.count ?? 0,
+    commentCount: post.post_comments?.[0]?.count ?? 0,
   }));
 
   return NextResponse.json(posts);
@@ -94,5 +108,7 @@ export async function POST(request: NextRequest) {
     publishedAt: data.published_at,
     readCount: data.read_count,
     imageUrl: data.image_url,
+    reactionCount: 0,
+    commentCount: 0,
   });
 }
