@@ -22,6 +22,47 @@ async function markRead(id: string) {
   redirect("/");
 }
 
+async function addReaction(id: string) {
+  "use server";
+
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
+
+  const response = await fetch(`${baseUrl}/api/posts/${id}/reactions`, {
+    method: "POST",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`addReaction failed: ${response.status}`);
+  }
+
+  redirect(`/posts/${id}`);
+}
+
+async function addComment(id: string, formData: FormData) {
+  "use server";
+
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
+
+  const payload = {
+    author: String(formData.get("author") ?? "社員"),
+    body: String(formData.get("body") ?? ""),
+  };
+
+  const response = await fetch(`${baseUrl}/api/posts/${id}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`addComment failed: ${response.status}`);
+  }
+
+  redirect(`/posts/${id}`);
+}
+
 export default async function PostDetailPage({
   params,
 }: {
@@ -109,13 +150,18 @@ export default async function PostDetailPage({
 
           <div
             style={{
+              display: "flex",
+              gap: 16,
+              flexWrap: "wrap",
               fontSize: 16,
               fontWeight: 700,
               color: "#64748b",
               whiteSpace: "nowrap",
             }}
           >
-            既読 {post.readCount}
+            <span>既読 {post.readCount}</span>
+            <span>👍 {post.reactionCount ?? 0}</span>
+            <span>💬 {post.comments?.length ?? 0}</span>
           </div>
         </div>
 
@@ -196,23 +242,43 @@ export default async function PostDetailPage({
             borderTop: "1px solid #e5e7eb",
           }}
         >
-          <form action={markRead.bind(null, id)}>
-            <button
-              type="submit"
-              style={{
-                border: "none",
-                borderRadius: 9999,
-                background: "#111827",
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: 16,
-                padding: "14px 24px",
-                cursor: "pointer",
-              }}
-            >
-              既読にする
-            </button>
-          </form>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <form action={markRead.bind(null, id)}>
+              <button
+                type="submit"
+                style={{
+                  border: "none",
+                  borderRadius: 9999,
+                  background: "#111827",
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  padding: "14px 24px",
+                  cursor: "pointer",
+                }}
+              >
+                既読にする
+              </button>
+            </form>
+
+            <form action={addReaction.bind(null, id)}>
+              <button
+                type="submit"
+                style={{
+                  border: "1px solid #d1d5db",
+                  borderRadius: 9999,
+                  background: "#ffffff",
+                  color: "#111827",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  padding: "14px 24px",
+                  cursor: "pointer",
+                }}
+              >
+                👍 いいね
+              </button>
+            </form>
+          </div>
 
           <Link
             href="/"
@@ -226,6 +292,104 @@ export default async function PostDetailPage({
           </Link>
         </div>
       </article>
+
+      <section
+        className="card"
+        style={{
+          maxWidth: 960,
+          margin: "24px auto 0",
+          padding: 32,
+          borderRadius: 24,
+          background: "#fff",
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+        }}
+      >
+        <h2 style={{ marginTop: 0, marginBottom: 20 }}>コメント</h2>
+
+        <form
+          action={addComment.bind(null, id)}
+          style={{
+            display: "grid",
+            gap: 14,
+            marginBottom: 28,
+          }}
+        >
+          <input
+            name="author"
+            type="text"
+            placeholder="名前"
+            defaultValue="社員"
+            style={{ padding: 12 }}
+          />
+          <textarea
+            name="body"
+            rows={4}
+            placeholder="コメントを入力"
+            required
+            style={{ padding: 12 }}
+          />
+          <button
+            type="submit"
+            style={{
+              border: "none",
+              borderRadius: 9999,
+              background: "#111827",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 15,
+              padding: "12px 20px",
+              cursor: "pointer",
+              width: "fit-content",
+            }}
+          >
+            コメントする
+          </button>
+        </form>
+
+        <div style={{ display: "grid", gap: 16 }}>
+          {(post.comments ?? []).length === 0 ? (
+            <p style={{ margin: 0, color: "#64748b" }}>まだコメントはありません。</p>
+          ) : (
+            (post.comments ?? []).map((comment) => (
+              <article
+                key={comment.id}
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 18,
+                  padding: 18,
+                  background: "#f8fafc",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    marginBottom: 10,
+                    color: "#475569",
+                    fontSize: 14,
+                    fontWeight: 700,
+                  }}
+                >
+                  <span>{comment.author}</span>
+                  <span>{new Date(comment.createdAt).toLocaleString("ja-JP")}</span>
+                </div>
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#111827",
+                    lineHeight: 1.8,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {comment.body}
+                </p>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
     </main>
   );
 }
