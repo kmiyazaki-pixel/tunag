@@ -30,7 +30,7 @@ export default async function HomePage({
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           gap: 16,
-          margin: "24px 0 32px",
+          margin: "24px 0 24px",
         }}
       >
         <div
@@ -72,10 +72,161 @@ export default async function HomePage({
             boxShadow: "0 6px 20px rgba(15, 23, 42, 0.05)",
           }}
         >
-          <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>既読登録数</p>
+          <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>既読者数</p>
           <h2 style={{ margin: "8px 0 0", fontSize: 32, color: "#0f172a" }}>
             {summary.totalReads}
           </h2>
+        </div>
+
+        <div
+          className="card"
+          style={{
+            padding: 24,
+            borderRadius: 20,
+            background: "#fff7ed",
+            boxShadow: "0 6px 20px rgba(15, 23, 42, 0.05)",
+            border: "1px solid #fdba74",
+          }}
+        >
+          <p style={{ margin: 0, color: "#9a3412", fontSize: 14 }}>未読の必読投稿</p>
+          <h2 style={{ margin: "8px 0 0", fontSize: 32, color: "#c2410c" }}>
+            {summary.requiredUnreadEstimate}
+          </h2>
+        </div>
+      </section>
+
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.2fr 0.8fr",
+          gap: 20,
+          marginBottom: 28,
+        }}
+      >
+        <div
+          className="card"
+          style={{
+            padding: 24,
+            borderRadius: 24,
+            background: "#ffffff",
+            boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+          }}
+        >
+          <h2 style={{ marginTop: 0, marginBottom: 18, fontSize: 22 }}>人気投稿ランキング</h2>
+
+          <div style={{ display: "grid", gap: 14 }}>
+            {summary.topPosts.length === 0 ? (
+              <p style={{ margin: 0, color: "#64748b" }}>投稿はまだありません。</p>
+            ) : (
+              summary.topPosts.map((post, index) => (
+                <Link
+                  key={post.id}
+                  href={`/posts/${post.id}`}
+                  style={{
+                    textDecoration: "none",
+                    color: "inherit",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 18,
+                    padding: 16,
+                    display: "block",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: "#6366f1",
+                          marginBottom: 6,
+                        }}
+                      >
+                        #{index + 1} / {post.category}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 700,
+                          color: "#0f172a",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {post.title}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        whiteSpace: "nowrap",
+                        color: "#475569",
+                        fontSize: 13,
+                        fontWeight: 700,
+                      }}
+                    >
+                      score {post.score}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      marginTop: 10,
+                      color: "#64748b",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span>既読 {post.readCount}</span>
+                    <span>👍 {post.reactionCount}</span>
+                    <span>💬 {post.commentCount}</span>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div
+          className="card"
+          style={{
+            padding: 24,
+            borderRadius: 24,
+            background: "#ffffff",
+            boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+          }}
+        >
+          <h2 style={{ marginTop: 0, marginBottom: 18, fontSize: 22 }}>カテゴリ別投稿数</h2>
+
+          <div style={{ display: "grid", gap: 12 }}>
+            {summary.categoryBreakdown.length === 0 ? (
+              <p style={{ margin: 0, color: "#64748b" }}>カテゴリはまだありません。</p>
+            ) : (
+              summary.categoryBreakdown.map((item) => (
+                <div
+                  key={item.category}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderBottom: "1px solid #e5e7eb",
+                    paddingBottom: 10,
+                  }}
+                >
+                  <span style={{ fontWeight: 700, color: "#0f172a" }}>{item.category}</span>
+                  <span style={{ color: "#64748b", fontWeight: 700 }}>{item.count}件</span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </section>
 
