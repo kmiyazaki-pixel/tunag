@@ -1,114 +1,44 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export async function GET() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl) {
-    return NextResponse.json(
-      { message: "NEXT_PUBLIC_SUPABASE_URL is not defined" },
-      { status: 500 }
-    );
+  if (!supabaseUrl || !anonKey) {
+    return NextResponse.json({ message: "env missing" }, { status: 500 });
   }
 
-  if (!serviceRoleKey) {
-    return NextResponse.json(
-      { message: "SUPABASE_SERVICE_ROLE_KEY is not defined" },
-      { status: 500 }
-    );
-  }
+  const supabase = createClient(supabaseUrl, anonKey);
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-  const { data, error } = await supabase
+  // 投稿一覧取得
+  const { data: posts, error } = await supabase
     .from("posts")
-    .select(`
-      id,
-      title,
-      body,
-      category,
-      required,
-      author,
-      published_at,
-      image_url,
-      post_reads(count),
-      post_reactions(count),
-      post_comments(count)
-    `)
+    .select("*")
     .order("published_at", { ascending: false });
 
   if (error) {
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
 
-  const posts = (data ?? []).map((post: any) => ({
-    id: post.id,
-    title: post.title,
-    body: post.body,
-    category: post.category,
-    required: post.required,
-    author: post.author,
-    publishedAt: post.published_at,
-    readCount: post.post_reads?.[0]?.count ?? 0,
-    imageUrl: post.image_url,
-    reactionCount: post.post_reactions?.[0]?.count ?? 0,
-    commentCount: post.post_comments?.[0]?.count ?? 0,
-  }));
+  // 各投稿のカウントを取得
+  const results = await Promise.all(
+    posts.map(async (post) => {
+      const [{ count: readCount }, { count: reactionCount }, { count: commentCount }] =
+        await Promise.all([
+          supabase.from("post_reads").select("*", { count: "exact", head: true }).eq("post_id", post.id),
+          supabase.from("post_reactions").select("*", { count: "exact", head: true }).eq("post_id", post.id),
+          supabase.from("post_comments").select("*", { count: "exact", head: true }).eq("post_id", post.id),
+        ]);
 
-  return NextResponse.json(posts);
-}
-
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl) {
-    return NextResponse.json(
-      { message: "NEXT_PUBLIC_SUPABASE_URL is not defined" },
-      { status: 500 }
-    );
-  }
-
-  if (!serviceRoleKey) {
-    return NextResponse.json(
-      { message: "SUPABASE_SERVICE_ROLE_KEY is not defined" },
-      { status: 500 }
-    );
-  }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-  const { data, error } = await supabase
-    .from("posts")
-    .insert({
-      title: body.title,
-      body: body.body,
-      category: body.category ?? "お知らせ",
-      required: body.required ?? false,
-      author: body.author ?? "管理者",
-      image_url: body.imageUrl ?? null,
+      return {
+        ...post,
+        read_count: readCount ?? 0,
+        reaction_count: reactionCount ?? 0,
+        comment_count: commentCount ?? 0,
+      };
     })
-    .select("id, title, body, category, required, author, published_at, image_url")
-    .single();
+  );
 
-  if (error) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({
-    id: data.id,
-    title: data.title,
-    body: data.body,
-    category: data.category,
-    required: data.required,
-    author: data.author,
-    publishedAt: data.published_at,
-    imageUrl: data.image_url,
-    readCount: 0,
-    reactionCount: 0,
-    commentCount: 0,
-  });
+  return NextResponse.json(results);
 }
