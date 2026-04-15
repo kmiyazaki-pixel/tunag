@@ -7,19 +7,34 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ category?: string }>;
+  searchParams?: Promise<{ category?: string; q?: string }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const selectedCategory = resolvedSearchParams?.category ?? "すべて";
+  const keyword = (resolvedSearchParams?.q ?? "").trim();
 
   const [posts, summary] = await Promise.all([fetchPosts(), fetchSummary()]);
 
   const categories = ["すべて", ...Array.from(new Set(posts.map((post) => post.category)))];
 
-  const filteredPosts =
-    selectedCategory === "すべて"
-      ? posts
-      : posts.filter((post) => post.category === selectedCategory);
+  const filteredPosts = posts.filter((post) => {
+    const matchCategory =
+      selectedCategory === "すべて" || post.category === selectedCategory;
+
+    const searchTarget = [
+      post.title,
+      post.body,
+      post.category,
+      post.author,
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    const matchKeyword =
+      keyword === "" || searchTarget.includes(keyword.toLowerCase());
+
+    return matchCategory && matchKeyword;
+  });
 
   return (
     <main className="container" style={{ paddingBottom: 48 }}>
@@ -230,6 +245,76 @@ export default async function HomePage({
         </div>
       </section>
 
+      <section
+        className="card"
+        style={{
+          padding: 20,
+          borderRadius: 24,
+          background: "#ffffff",
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+          marginBottom: 24,
+        }}
+      >
+        <form
+          action="/"
+          method="GET"
+          style={{
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <input type="hidden" name="category" value={selectedCategory === "すべて" ? "" : selectedCategory} />
+
+          <input
+            name="q"
+            defaultValue={keyword}
+            placeholder="タイトル・本文・投稿者・カテゴリで検索"
+            style={{
+              flex: 1,
+              minWidth: 280,
+              padding: "12px 16px",
+              borderRadius: 9999,
+              border: "1px solid #d1d5db",
+              fontSize: 14,
+            }}
+          />
+
+          <button
+            type="submit"
+            style={{
+              border: "none",
+              borderRadius: 9999,
+              background: "#111827",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 14,
+              padding: "12px 18px",
+              cursor: "pointer",
+            }}
+          >
+            検索
+          </button>
+
+          <Link
+            href="/"
+            style={{
+              textDecoration: "none",
+              padding: "12px 18px",
+              borderRadius: 9999,
+              fontSize: 14,
+              fontWeight: 700,
+              background: "#f3f4f6",
+              color: "#374151",
+              border: "1px solid #e5e7eb",
+            }}
+          >
+            クリア
+          </Link>
+        </form>
+      </section>
+
       <section style={{ marginBottom: 24 }}>
         <div
           style={{
@@ -243,7 +328,11 @@ export default async function HomePage({
             const active = selectedCategory === category;
             const href =
               category === "すべて"
-                ? "/"
+                ? keyword
+                  ? `/?q=${encodeURIComponent(keyword)}`
+                  : "/"
+                : keyword
+                ? `/?category=${encodeURIComponent(category)}&q=${encodeURIComponent(keyword)}`
                 : `/?category=${encodeURIComponent(category)}`;
 
             return (
@@ -274,6 +363,7 @@ export default async function HomePage({
             fontSize: 14,
           }}
         >
+          {keyword ? `「${keyword}」で検索中 / ` : ""}
           {selectedCategory === "すべて"
             ? `全 ${filteredPosts.length} 件`
             : `「${selectedCategory}」 ${filteredPosts.length} 件`}
@@ -281,78 +371,76 @@ export default async function HomePage({
       </section>
 
       <section style={{ display: "grid", gap: 20 }}>
-        {filteredPosts.map((post) => (
-          <Link
-            key={post.id}
-            href={`/posts/${post.id}`}
+        {filteredPosts.length === 0 ? (
+          <div
+            className="card"
             style={{
-              textDecoration: "none",
-              color: "inherit",
-              display: "block",
+              padding: 32,
+              borderRadius: 24,
+              background: "#ffffff",
+              boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+              color: "#64748b",
             }}
           >
-            <article
-              className="card"
+            条件に合う投稿が見つかりませんでした。
+          </div>
+        ) : (
+          filteredPosts.map((post) => (
+            <Link
+              key={post.id}
+              href={`/posts/${post.id}`}
               style={{
-                padding: 24,
-                borderRadius: 24,
-                background: "#ffffff",
-                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
-                border: post.required ? "1px solid #fecaca" : "1px solid #e5e7eb",
-                transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                cursor: "pointer",
+                textDecoration: "none",
+                color: "inherit",
+                display: "block",
               }}
             >
-              {post.imageUrl && (
-                <div
-                  style={{
-                    marginBottom: 18,
-                    borderRadius: 18,
-                    overflow: "hidden",
-                    height: 220,
-                    background: "#e5e7eb",
-                  }}
-                >
-                  <img
-                    src={post.imageUrl}
-                    alt={post.title}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      display: "block",
-                    }}
-                  />
-                </div>
-              )}
-
-              <div
+              <article
+                className="card"
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  flexWrap: "wrap",
-                  marginBottom: 14,
+                  padding: 24,
+                  borderRadius: 24,
+                  background: "#ffffff",
+                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+                  border: post.required ? "1px solid #fecaca" : "1px solid #e5e7eb",
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                  cursor: "pointer",
                 }}
               >
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <span
+                {post.imageUrl && (
+                  <div
                     style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      padding: "7px 12px",
-                      borderRadius: 9999,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      background: post.required ? "#fee2e2" : "#eef2ff",
-                      color: post.required ? "#b91c1c" : "#4338ca",
+                      marginBottom: 18,
+                      borderRadius: 18,
+                      overflow: "hidden",
+                      height: 220,
+                      background: "#e5e7eb",
                     }}
                   >
-                    {post.required ? "必読" : post.category}
-                  </span>
+                    <img
+                      src={post.imageUrl}
+                      alt={post.title}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  </div>
+                )}
 
-                  {!post.required && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    marginBottom: 14,
+                  }}
+                >
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <span
                       style={{
                         display: "inline-flex",
@@ -360,87 +448,104 @@ export default async function HomePage({
                         padding: "7px 12px",
                         borderRadius: 9999,
                         fontSize: 13,
-                        fontWeight: 600,
-                        background: "#f3f4f6",
-                        color: "#374151",
+                        fontWeight: 700,
+                        background: post.required ? "#fee2e2" : "#eef2ff",
+                        color: post.required ? "#b91c1c" : "#4338ca",
                       }}
                     >
-                      {post.category}
+                      {post.required ? "必読" : post.category}
                     </span>
-                  )}
+
+                    {!post.required && (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: "7px 12px",
+                          borderRadius: 9999,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          background: "#f3f4f6",
+                          color: "#374151",
+                        }}
+                      >
+                        {post.category}
+                      </span>
+                    )}
+                  </div>
+
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "#64748b",
+                    }}
+                  >
+                    既読 {post.readCount}
+                  </span>
                 </div>
 
-                <span
+                <h2
                   style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: "#64748b",
+                    margin: "0 0 12px",
+                    fontSize: 28,
+                    lineHeight: 1.3,
+                    color: "#0f172a",
                   }}
                 >
-                  既読 {post.readCount}
-                </span>
-              </div>
+                  {post.title}
+                </h2>
 
-              <h2
-                style={{
-                  margin: "0 0 12px",
-                  fontSize: 28,
-                  lineHeight: 1.3,
-                  color: "#0f172a",
-                }}
-              >
-                {post.title}
-              </h2>
-
-              <p
-                style={{
-                  margin: "0 0 18px",
-                  color: "#334155",
-                  fontSize: 16,
-                  lineHeight: 1.8,
-                }}
-              >
-                {post.body.length > 140 ? `${post.body.slice(0, 140)}...` : post.body}
-              </p>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  flexWrap: "wrap",
-                  paddingTop: 14,
-                  borderTop: "1px solid #e5e7eb",
-                }}
-              >
-                <div
+                <p
                   style={{
-                    color: "#64748b",
-                    fontSize: 14,
+                    margin: "0 0 18px",
+                    color: "#334155",
+                    fontSize: 16,
+                    lineHeight: 1.8,
                   }}
                 >
-                  {post.author} / {new Date(post.publishedAt).toLocaleString("ja-JP")}
-                </div>
+                  {post.body.length > 140 ? `${post.body.slice(0, 140)}...` : post.body}
+                </p>
 
                 <div
                   style={{
                     display: "flex",
-                    gap: 14,
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    color: "#475569",
-                    fontSize: 14,
-                    fontWeight: 700,
+                    gap: 12,
+                    flexWrap: "wrap",
+                    paddingTop: 14,
+                    borderTop: "1px solid #e5e7eb",
                   }}
                 >
-                  <span>👍 {post.reactionCount ?? 0}</span>
-                  <span>💬 {post.commentCount ?? 0}</span>
-                  <span style={{ color: "#111827" }}>続きを読む →</span>
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: 14,
+                    }}
+                  >
+                    {post.author} / {new Date(post.publishedAt).toLocaleString("ja-JP")}
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 14,
+                      alignItems: "center",
+                      color: "#475569",
+                      fontSize: 14,
+                      fontWeight: 700,
+                    }}
+                  >
+                    <span>👍 {post.reactionCount ?? 0}</span>
+                    <span>💬 {post.commentCount ?? 0}</span>
+                    <span style={{ color: "#111827" }}>続きを読む →</span>
+                  </div>
                 </div>
-              </div>
-            </article>
-          </Link>
-        ))}
+              </article>
+            </Link>
+          ))
+        )}
       </section>
     </main>
   );
