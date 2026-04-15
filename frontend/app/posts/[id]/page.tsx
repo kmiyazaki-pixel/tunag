@@ -14,6 +14,23 @@ async function markRead(id: string, formData: FormData) {
     readerName: String(formData.get("readerName") ?? "").trim(),
   };
 
+  async function deletePost(id: string) {
+  "use server";
+
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
+
+  const res = await fetch(`${baseUrl}/api/posts/${id}/delete`, {
+    method: "POST",
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error("delete failed");
+  }
+
+  redirect("/");
+}
+
   const response = await fetch(`${baseUrl}/api/posts/${id}/read`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
