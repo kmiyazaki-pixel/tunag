@@ -5,13 +5,19 @@ import { fetchPost } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-async function markRead(id: string) {
+async function markRead(id: string, formData: FormData) {
   "use server";
 
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
 
+  const payload = {
+    readerName: String(formData.get("readerName") ?? "").trim(),
+  };
+
   const response = await fetch(`${baseUrl}/api/posts/${id}/read`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
     cache: "no-store",
   });
 
@@ -19,7 +25,7 @@ async function markRead(id: string) {
     throw new Error(`markRead failed: ${response.status}`);
   }
 
-  redirect("/");
+  redirect(`/posts/${id}`);
 }
 
 async function addReaction(id: string) {
@@ -243,7 +249,18 @@ export default async function PostDetailPage({
           }}
         >
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <form action={markRead.bind(null, id)}>
+            <form action={markRead.bind(null, id)} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                name="readerName"
+                type="text"
+                placeholder="名前を入力"
+                required
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: 9999,
+                  border: "1px solid #d1d5db",
+                }}
+              />
               <button
                 type="submit"
                 style={{
@@ -304,6 +321,29 @@ export default async function PostDetailPage({
           boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
         }}
       >
+        <h2 style={{ marginTop: 0, marginBottom: 16 }}>既読者</h2>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 28 }}>
+          {(post.readers ?? []).length === 0 ? (
+            <p style={{ margin: 0, color: "#64748b" }}>まだ既読者はいません。</p>
+          ) : (
+            (post.readers ?? []).map((reader) => (
+              <span
+                key={reader.id}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 9999,
+                  background: "#f3f4f6",
+                  color: "#374151",
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}
+              >
+                {reader.name}
+              </span>
+            ))
+          )}
+        </div>
+
         <h2 style={{ marginTop: 0, marginBottom: 20 }}>コメント</h2>
 
         <form
