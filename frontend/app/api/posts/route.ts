@@ -31,8 +31,8 @@ export async function GET() {
       required,
       author,
       published_at,
-      read_count,
       image_url,
+      post_reads(count),
       post_reactions(count),
       post_comments(count)
     `)
@@ -50,7 +50,7 @@ export async function GET() {
     required: post.required,
     author: post.author,
     publishedAt: post.published_at,
-    readCount: post.read_count,
+    readCount: post.post_reads?.[0]?.count ?? 0,
     imageUrl: post.image_url,
     reactionCount: post.post_reactions?.[0]?.count ?? 0,
     commentCount: post.post_comments?.[0]?.count ?? 0,
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       author: body.author ?? "管理者",
       image_url: body.imageUrl ?? null,
     })
-    .select("id, title, body, category, required, author, published_at, read_count, image_url")
+    .select("id, title, body, category, required, author, published_at, image_url")
     .single();
 
   if (error) {
@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
     required: data.required,
     author: data.author,
     publishedAt: data.published_at,
-    readCount: data.read_count,
     imageUrl: data.image_url,
+    readCount: 0,
     reactionCount: 0,
     commentCount: 0,
   });
