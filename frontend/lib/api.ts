@@ -31,6 +31,20 @@ export type Summary = {
   totalPosts: number;
   requiredPosts: number;
   totalReads: number;
+  requiredUnreadEstimate: number;
+  categoryBreakdown: {
+    category: string;
+    count: number;
+  }[];
+  topPosts: {
+    id: number;
+    title: string;
+    category: string;
+    readCount: number;
+    reactionCount: number;
+    commentCount: number;
+    score: number;
+  }[];
 };
 
 const siteBaseUrl = () =>
