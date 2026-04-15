@@ -1,485 +1,355 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { Header } from "@/components/Header";
-import { fetchPost } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
-export const dynamic = "force-dynamic";
-
-async function markRead(id: string, formData: FormData) {
-  "use server";
-
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
-
-  const payload = {
-    readerName: String(formData.get("readerName") ?? "").trim(),
-  };
-
-  const response = await fetch(`${baseUrl}/api/posts/${id}/read`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(`markRead failed: ${response.status}`);
-  }
-
-  redirect(`/posts/${id}`);
-}
-
-async function addReaction(id: string) {
-  "use server";
-
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
-
-  const response = await fetch(`${baseUrl}/api/posts/${id}/reactions`, {
-    method: "POST",
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(`addReaction failed: ${response.status}`);
-  }
-
-  redirect(`/posts/${id}`);
-}
-
-async function addComment(id: string, formData: FormData) {
-  "use server";
-
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
-
-  const payload = {
-    author: String(formData.get("author") ?? "社員"),
-    body: String(formData.get("body") ?? ""),
-  };
-
-  const response = await fetch(`${baseUrl}/api/posts/${id}/comments`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(`addComment failed: ${response.status}`);
-  }
-
-  redirect(`/posts/${id}`);
-}
-
-async function deletePost(id: string) {
-  "use server";
-
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
-
-  const res = await fetch(`${baseUrl}/api/posts/${id}/delete`, {
-    method: "POST",
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error("delete failed");
-  }
-
-  redirect("/");
-}
-
-export default async function PostDetailPage({
-  params,
-}: {
+type PageProps = {
   params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const post = await fetchPost(id);
+};
 
-  const publishedAt = new Date(post.publishedAt).toLocaleString("ja-JP");
+type PostSummary = {
+  id: number;
+  title: string;
+  body: string;
+  category: string;
+  required: boolean;
+  author: string;
+  image_url: string | null;
+  published_at: string | null;
+  updated_at: string | null;
+  status: string;
+  required_deadline: string | null;
+  is_pinned: boolean;
+  read_count: number;
+  reaction_count: number;
+  comment_count: number;
+  actual_read_count: number;
+};
+
+type Comment = {
+  id: number;
+  post_id: number;
+  author: string;
+  body: string;
+  created_at: string | null;
+};
+
+type ReadRow = {
+  id: number;
+  reader_name: string;
+  created_at: string | null;
+  read_at?: string | null;
+};
+
+function formatDate(value: string | null) {
+  if (!value) return "日時未設定";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "日時不明";
+  return date.toLocaleString("ja-JP");
+}
+
+export default async function PostDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const postId = Number(id);
+
+  if (Number.isNaN(postId)) {
+    return (
+      <main style={styles.main}>
+        <div style={styles.container}>
+          <p>不正な投稿IDです。</p>
+        </div>
+      </main>
+    );
+  }
+
+  const [{ data: post, error: postError }, { data: comments }, { data: reads }] =
+    await Promise.all([
+      supabase.from("post_summary").select("*").eq("id", postId).single(),
+      supabase
+        .from("post_comments")
+        .select("*")
+        .eq("post_id", postId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("post_reads")
+        .select("id, reader_name, created_at, read_at")
+        .eq("post_id", postId)
+        .order("created_at", { ascending: true }),
+    ]);
+
+  if (postError || !post) {
+    return (
+      <main style={styles.main}>
+        <div style={styles.container}>
+          <Link href="/" style={styles.backLink}>
+            ← 一覧へ戻る
+          </Link>
+          <p style={styles.error}>投稿が見つかりませんでした。</p>
+        </div>
+      </main>
+    );
+  }
+
+  const safePost = post as PostSummary;
+  const safeComments = (comments ?? []) as Comment[];
+  const safeReads = (reads ?? []) as ReadRow[];
 
   return (
-    <main className="container" style={{ paddingBottom: 48 }}>
-      <Header />
-
-      <div style={{ margin: "16px 0 24px" }}>
-        <Link
-          href="/"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            color: "#4b5563",
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
-        >
-          ← 一覧に戻る
-        </Link>
-      </div>
-
-      <article
-        className="card"
-        style={{
-          maxWidth: 960,
-          margin: "0 auto",
-          padding: 32,
-          borderRadius: 24,
-          background: "#fff",
-          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 16,
-            flexWrap: "wrap",
-            marginBottom: 20,
-          }}
-        >
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "8px 14px",
-                borderRadius: 9999,
-                fontSize: 14,
-                fontWeight: 700,
-                background: post.required ? "#fee2e2" : "#eef2ff",
-                color: post.required ? "#b91c1c" : "#4338ca",
-              }}
-            >
-              {post.required ? "必読" : post.category}
-            </span>
-
-            {!post.required && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  padding: "8px 14px",
-                  borderRadius: 9999,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  background: "#f3f4f6",
-                  color: "#374151",
-                }}
-              >
-                {post.category}
-              </span>
-            )}
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: 16,
-              flexWrap: "wrap",
-              fontSize: 16,
-              fontWeight: 700,
-              color: "#64748b",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <span>既読 {post.readCount}</span>
-            <span>👍 {post.reactionCount ?? 0}</span>
-            <span>💬 {post.comments?.length ?? 0}</span>
-          </div>
-        </div>
-
-        {post.imageUrl && (
-          <div
-            style={{
-              marginBottom: 24,
-              borderRadius: 20,
-              overflow: "hidden",
-              background: "#e5e7eb",
-              maxHeight: 420,
-            }}
-          >
-            <img
-              src={post.imageUrl}
-              alt={post.title}
-              style={{
-                width: "100%",
-                height: "100%",
-                maxHeight: 420,
-                objectFit: "cover",
-                display: "block",
-              }}
-            />
-          </div>
-        )}
-
-        <h1
-          style={{
-            fontSize: 42,
-            lineHeight: 1.2,
-            margin: "0 0 20px",
-            color: "#0f172a",
-            fontWeight: 800,
-          }}
-        >
-          {post.title}
-        </h1>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 18,
-            flexWrap: "wrap",
-            color: "#64748b",
-            fontSize: 15,
-            marginBottom: 32,
-            paddingBottom: 20,
-            borderBottom: "1px solid #e5e7eb",
-          }}
-        >
-          <span>投稿者: {post.author}</span>
-          <span>公開日: {publishedAt}</span>
-          <span>カテゴリ: {post.category}</span>
-        </div>
-
-        <section
-          style={{
-            fontSize: 20,
-            lineHeight: 1.95,
-            color: "#111827",
-            whiteSpace: "pre-wrap",
-            minHeight: 180,
-          }}
-        >
-          {post.body}
-        </section>
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 16,
-            flexWrap: "wrap",
-            marginTop: 40,
-            paddingTop: 24,
-            borderTop: "1px solid #e5e7eb",
-          }}
-        >
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <form action={markRead.bind(null, id)} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input
-                name="readerName"
-                type="text"
-                placeholder="名前を入力"
-                required
-                style={{
-                  padding: "12px 14px",
-                  borderRadius: 9999,
-                  border: "1px solid #d1d5db",
-                }}
-              />
-              <button
-                type="submit"
-                style={{
-                  border: "none",
-                  borderRadius: 9999,
-                  background: "#111827",
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  padding: "14px 24px",
-                  cursor: "pointer",
-                }}
-              >
-                既読にする
-              </button>
-            </form>
-
-            <form action={addReaction.bind(null, id)}>
-              <button
-                type="submit"
-                style={{
-                  border: "1px solid #d1d5db",
-                  borderRadius: 9999,
-                  background: "#ffffff",
-                  color: "#111827",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  padding: "14px 24px",
-                  cursor: "pointer",
-                }}
-              >
-                👍 いいね
-              </button>
-            </form>
-
-            <Link
-              href={`/admin/edit/${id}`}
-              style={{
-                textDecoration: "none",
-                padding: "14px 24px",
-                borderRadius: 9999,
-                border: "1px solid #d1d5db",
-                color: "#111827",
-                fontWeight: 700,
-                fontSize: 16,
-              }}
-            >
-              編集する
-            </Link>
-
-            <form action={deletePost.bind(null, id)}>
-              <button
-                type="submit"
-                style={{
-                  border: "none",
-                  borderRadius: 9999,
-                  background: "#dc2626",
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  padding: "14px 24px",
-                  cursor: "pointer",
-                }}
-              >
-                削除
-              </button>
-            </form>
-          </div>
-
-          <Link
-            href="/"
-            style={{
-              color: "#475569",
-              textDecoration: "none",
-              fontWeight: 600,
-            }}
-          >
-            投稿一覧へ戻る
+    <main style={styles.main}>
+      <div style={styles.container}>
+        <div style={styles.topRow}>
+          <Link href="/" style={styles.backLink}>
+            ← 一覧へ戻る
+          </Link>
+          <Link href="/admin/new" style={styles.adminLink}>
+            新規投稿
           </Link>
         </div>
-      </article>
 
-      <section
-        className="card"
-        style={{
-          maxWidth: 960,
-          margin: "24px auto 0",
-          padding: 32,
-          borderRadius: 24,
-          background: "#fff",
-          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
-        }}
-      >
-        <h2 style={{ marginTop: 0, marginBottom: 16 }}>既読者</h2>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 28 }}>
-          {(post.readers ?? []).length === 0 ? (
-            <p style={{ margin: 0, color: "#64748b" }}>まだ既読者はいません。</p>
+        <article style={styles.article}>
+          {safePost.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={safePost.image_url} alt={safePost.title} style={styles.image} />
+          ) : null}
+
+          <div style={styles.articleBody}>
+            <div style={styles.badges}>
+              <span style={styles.category}>{safePost.category}</span>
+              {safePost.required ? <span style={styles.required}>必読</span> : null}
+              {safePost.is_pinned ? <span style={styles.pinned}>固定</span> : null}
+            </div>
+
+            <h1 style={styles.title}>{safePost.title}</h1>
+
+            <div style={styles.meta}>
+              <span>投稿者: {safePost.author}</span>
+              <span>公開日: {formatDate(safePost.published_at)}</span>
+              <span>更新日: {formatDate(safePost.updated_at)}</span>
+            </div>
+
+            <p style={styles.body}>{safePost.body}</p>
+
+            <section style={styles.statsSection}>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>既読数</div>
+                <div style={styles.statValue}>{safePost.actual_read_count ?? safePost.read_count ?? 0}</div>
+              </div>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>コメント数</div>
+                <div style={styles.statValue}>{safePost.comment_count ?? 0}</div>
+              </div>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>リアクション数</div>
+                <div style={styles.statValue}>{safePost.reaction_count ?? 0}</div>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <section style={styles.section}>
+          <h2 style={styles.sectionTitle}>既読者</h2>
+          {safeReads.length === 0 ? (
+            <p style={styles.empty}>まだ既読者はいません。</p>
           ) : (
-            (post.readers ?? []).map((reader) => (
-              <span
-                key={reader.id}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 9999,
-                  background: "#f3f4f6",
-                  color: "#374151",
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              >
-                {reader.name}
-              </span>
-            ))
-          )}
-        </div>
-
-        <h2 style={{ marginTop: 0, marginBottom: 20 }}>コメント</h2>
-
-        <form
-          action={addComment.bind(null, id)}
-          style={{
-            display: "grid",
-            gap: 14,
-            marginBottom: 28,
-          }}
-        >
-          <input
-            name="author"
-            type="text"
-            placeholder="名前"
-            defaultValue="社員"
-            style={{ padding: 12 }}
-          />
-          <textarea
-            name="body"
-            rows={4}
-            placeholder="コメントを入力"
-            required
-            style={{ padding: 12 }}
-          />
-          <button
-            type="submit"
-            style={{
-              border: "none",
-              borderRadius: 9999,
-              background: "#111827",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 15,
-              padding: "12px 20px",
-              cursor: "pointer",
-              width: "fit-content",
-            }}
-          >
-            コメントする
-          </button>
-        </form>
-
-        <div style={{ display: "grid", gap: 16 }}>
-          {(post.comments ?? []).length === 0 ? (
-            <p style={{ margin: 0, color: "#64748b" }}>まだコメントはありません。</p>
-          ) : (
-            (post.comments ?? []).map((comment) => (
-              <article
-                key={comment.id}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 18,
-                  padding: 18,
-                  background: "#f8fafc",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: 10,
-                    color: "#475569",
-                    fontSize: 14,
-                    fontWeight: 700,
-                  }}
-                >
-                  <span>{comment.author}</span>
-                  <span>{new Date(comment.createdAt).toLocaleString("ja-JP")}</span>
+            <div style={styles.readList}>
+              {safeReads.map((read) => (
+                <div key={read.id} style={styles.readItem}>
+                  <strong>{read.reader_name}</strong>
+                  <span>{formatDate(read.read_at ?? read.created_at)}</span>
                 </div>
-                <p
-                  style={{
-                    margin: 0,
-                    color: "#111827",
-                    lineHeight: 1.8,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {comment.body}
-                </p>
-              </article>
-            ))
+              ))}
+            </div>
           )}
-        </div>
-      </section>
+        </section>
+
+        <section style={styles.section}>
+          <h2 style={styles.sectionTitle}>コメント</h2>
+          {safeComments.length === 0 ? (
+            <p style={styles.empty}>コメントはまだありません。</p>
+          ) : (
+            <div style={styles.commentList}>
+              {safeComments.map((comment) => (
+                <div key={comment.id} style={styles.commentItem}>
+                  <div style={styles.commentHead}>
+                    <strong>{comment.author}</strong>
+                    <span>{formatDate(comment.created_at)}</span>
+                  </div>
+                  <p style={styles.commentBody}>{comment.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  main: {
+    minHeight: "100vh",
+    background: "#f5f7fb",
+    padding: "32px 16px",
+  },
+  container: {
+    maxWidth: "960px",
+    margin: "0 auto",
+  },
+  topRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "20px",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+  backLink: {
+    textDecoration: "none",
+    color: "#2563eb",
+    fontWeight: 700,
+  },
+  adminLink: {
+    textDecoration: "none",
+    color: "#111",
+    background: "#fff",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    fontWeight: 700,
+  },
+  article: {
+    background: "#fff",
+    borderRadius: "18px",
+    overflow: "hidden",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+    marginBottom: "24px",
+  },
+  image: {
+    width: "100%",
+    height: "320px",
+    objectFit: "cover",
+    display: "block",
+  },
+  articleBody: {
+    padding: "24px",
+  },
+  badges: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    marginBottom: "16px",
+  },
+  category: {
+    background: "#eef2ff",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+  required: {
+    background: "#fee2e2",
+    color: "#b91c1c",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+  pinned: {
+    background: "#ecfccb",
+    color: "#3f6212",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+  title: {
+    fontSize: "32px",
+    margin: "0 0 16px",
+  },
+  meta: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "14px",
+    color: "#666",
+    fontSize: "14px",
+    marginBottom: "20px",
+  },
+  body: {
+    fontSize: "16px",
+    lineHeight: 1.9,
+    whiteSpace: "pre-wrap",
+  },
+  statsSection: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gap: "12px",
+    marginTop: "24px",
+  },
+  statCard: {
+    background: "#f9fafb",
+    borderRadius: "14px",
+    padding: "16px",
+  },
+  statLabel: {
+    fontSize: "13px",
+    color: "#666",
+    marginBottom: "6px",
+  },
+  statValue: {
+    fontSize: "24px",
+    fontWeight: 700,
+  },
+  section: {
+    background: "#fff",
+    borderRadius: "18px",
+    padding: "24px",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+    marginBottom: "20px",
+  },
+  sectionTitle: {
+    margin: "0 0 16px",
+    fontSize: "22px",
+  },
+  readList: {
+    display: "grid",
+    gap: "10px",
+  },
+  readItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    background: "#f9fafb",
+    borderRadius: "12px",
+    padding: "12px 14px",
+  },
+  commentList: {
+    display: "grid",
+    gap: "12px",
+  },
+  commentItem: {
+    background: "#f9fafb",
+    borderRadius: "12px",
+    padding: "14px 16px",
+  },
+  commentHead: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    color: "#444",
+    marginBottom: "8px",
+    flexWrap: "wrap",
+  },
+  commentBody: {
+    margin: 0,
+    lineHeight: 1.8,
+    whiteSpace: "pre-wrap",
+  },
+  empty: {
+    color: "#666",
+    margin: 0,
+  },
+  error: {
+    color: "#b91c1c",
+    background: "#fee2e2",
+    padding: "16px",
+    borderRadius: "12px",
+  },
+};
