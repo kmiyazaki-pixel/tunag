@@ -28,7 +28,19 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("posts")
-    .select("id, title, body, category, required, author, published_at, read_count, image_url")
+    .select(`
+      id,
+      title,
+      body,
+      category,
+      required,
+      author,
+      published_at,
+      read_count,
+      image_url,
+      post_reactions(count),
+      post_comments(id, author, body, created_at)
+    `)
     .eq("id", Number(id))
     .single();
 
@@ -46,5 +58,12 @@ export async function GET(
     publishedAt: data.published_at,
     readCount: data.read_count,
     imageUrl: data.image_url,
+    reactionCount: data.post_reactions?.[0]?.count ?? 0,
+    comments: (data.post_comments ?? []).map((comment: any) => ({
+      id: comment.id,
+      author: comment.author,
+      body: comment.body,
+      createdAt: comment.created_at,
+    })),
   });
 }
