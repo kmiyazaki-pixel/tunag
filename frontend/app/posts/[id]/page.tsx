@@ -295,6 +295,21 @@ export default async function PostDetailPage({
                 👍 いいね
               </button>
             </form>
+
+            <Link
+              href={`/admin/edit/${id}`}
+              style={{
+                textDecoration: "none",
+                padding: "14px 24px",
+                borderRadius: 9999,
+                border: "1px solid #d1d5db",
+                color: "#111827",
+                fontWeight: 700,
+                fontSize: 16,
+              }}
+            >
+              編集する
+            </Link>
           </div>
 
           <Link
