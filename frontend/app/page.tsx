@@ -272,14 +272,20 @@ export default async function HomePage({
                   {post.author} / {new Date(post.publishedAt).toLocaleString("ja-JP")}
                 </div>
 
-                <span
+                <div
                   style={{
-                    color: "#111827",
+                    display: "flex",
+                    gap: 14,
+                    alignItems: "center",
+                    color: "#475569",
+                    fontSize: 14,
                     fontWeight: 700,
                   }}
                 >
-                  続きを読む →
-                </span>
+                  <span>👍 {post.reactionCount ?? 0}</span>
+                  <span>💬 {post.commentCount ?? 0}</span>
+                  <span style={{ color: "#111827" }}>続きを読む →</span>
+                </div>
               </div>
             </article>
           </Link>
