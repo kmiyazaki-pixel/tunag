@@ -36,8 +36,8 @@ export async function GET(
       required,
       author,
       published_at,
-      read_count,
       image_url,
+      post_reads(id, reader_name, created_at),
       post_reactions(count),
       post_comments(id, author, body, created_at)
     `)
@@ -56,8 +56,13 @@ export async function GET(
     required: data.required,
     author: data.author,
     publishedAt: data.published_at,
-    readCount: data.read_count,
     imageUrl: data.image_url,
+    readCount: (data.post_reads ?? []).length,
+    readers: (data.post_reads ?? []).map((read: any) => ({
+      id: read.id,
+      name: read.reader_name,
+      createdAt: read.created_at,
+    })),
     reactionCount: data.post_reactions?.[0]?.count ?? 0,
     comments: (data.post_comments ?? []).map((comment: any) => ({
       id: comment.id,
