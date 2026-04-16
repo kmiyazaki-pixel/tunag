@@ -4,6 +4,7 @@ export const revalidate = 0;
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import PostActions from "@/components/post-actions";
+import CommentList from "@/components/comment-list";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -205,21 +206,7 @@ export default async function PostDetailPage({ params }: PageProps) {
 
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>コメント</h2>
-          {safeComments.length === 0 ? (
-            <p style={styles.empty}>コメントはまだありません。</p>
-          ) : (
-            <div style={styles.commentList}>
-              {safeComments.map((comment) => (
-                <div key={comment.id} style={styles.commentItem}>
-                  <div style={styles.commentHead}>
-                    <strong>{comment.author}</strong>
-                    <span>{formatDate(comment.created_at)}</span>
-                  </div>
-                  <p style={styles.commentBody}>{comment.body}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          <CommentList comments={safeComments} />
         </section>
       </div>
     </main>
@@ -394,28 +381,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#f9fafb",
     borderRadius: "12px",
     padding: "12px 14px",
-  },
-  commentList: {
-    display: "grid",
-    gap: "12px",
-  },
-  commentItem: {
-    background: "#f9fafb",
-    borderRadius: "12px",
-    padding: "14px 16px",
-  },
-  commentHead: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    color: "#444",
-    marginBottom: "8px",
-    flexWrap: "wrap",
-  },
-  commentBody: {
-    margin: 0,
-    lineHeight: 1.8,
-    whiteSpace: "pre-wrap",
   },
   empty: {
     color: "#666",
