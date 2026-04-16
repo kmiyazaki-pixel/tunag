@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
+function sanitizeFileName(name: string) {
+  return name.replace(/[^\w.\-]/g, "_");
+}
+
 export default function NewPostPage() {
   const router = useRouter();
 
@@ -12,16 +16,39 @@ export default function NewPostPage() {
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("お知らせ");
   const [author, setAuthor] = useState("管理者");
-  const [imageUrl, setImageUrl] = useState("");
   const [required, setRequired] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [requiredDeadline, setRequiredDeadline] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const isValid = useMemo(() => {
     return title.trim() !== "" && body.trim() !== "";
   }, [title, body]);
+
+  async function uploadImageIfNeeded() {
+    if (!imageFile) return null;
+
+    const fileExt = imageFile.name.split(".").pop() || "jpg";
+    const fileName = `${Date.now()}-${sanitizeFileName(imageFile.name)}`;
+    const filePath = `posts/${fileName}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("post-images")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(uploadError.message);
+    }
+
+    const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
+    return data.publicUrl;
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,34 +58,48 @@ export default function NewPostPage() {
     setSaving(true);
     setMessage(null);
 
-    const payload = {
-      title: title.trim(),
-      body: body.trim(),
-      category: category.trim() || "お知らせ",
-      required,
-      author: author.trim() || "管理者",
-      image_url: imageUrl.trim() || null,
-      status: "published",
-      is_pinned: isPinned,
-      required_deadline: required && requiredDeadline ? new Date(requiredDeadline).toISOString() : null,
-    };
+    try {
+      const uploadedImageUrl = await uploadImageIfNeeded();
 
-    const { data, error } = await supabase.from("posts").insert([payload]).select("id").single();
+      const payload = {
+        title: title.trim(),
+        body: body.trim(),
+        category: category.trim() || "お知らせ",
+        required,
+        author: author.trim() || "管理者",
+        image_url: uploadedImageUrl || null,
+        status: "published",
+        is_pinned: isPinned,
+        required_deadline:
+          required && requiredDeadline
+            ? new Date(requiredDeadline).toISOString()
+            : null,
+      };
 
-    setSaving(false);
+      const { data, error } = await supabase
+        .from("posts")
+        .insert([payload])
+        .select("id")
+        .single();
 
-    if (error) {
-      setMessage(`保存に失敗しました: ${error.message}`);
-      return;
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.id) {
+        router.refresh();
+        router.push(`/posts/${data.id}`);
+        return;
+      }
+
+      router.push("/");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "保存に失敗しました。";
+      setMessage(`保存に失敗しました: ${message}`);
+    } finally {
+      setSaving(false);
     }
-
-    setMessage("投稿を作成しました。");
-    if (data?.id) {
-      router.push(`/posts/${data.id}`);
-      return;
-    }
-
-    router.push("/");
   }
 
   return (
@@ -72,7 +113,7 @@ export default function NewPostPage() {
 
         <div style={styles.card}>
           <h1 style={styles.title}>新規投稿作成</h1>
-          <p style={styles.subtitle}>Supabase に直接投稿します。</p>
+          <p style={styles.subtitle}>画像アップロード付きで投稿します。</p>
 
           <form onSubmit={handleSubmit} style={styles.form}>
             <label style={styles.label}>
@@ -99,7 +140,11 @@ export default function NewPostPage() {
             <div style={styles.grid}>
               <label style={styles.label}>
                 <span>カテゴリ</span>
-                <select style={styles.input} value={category} onChange={(e) => setCategory(e.target.value)}>
+                <select
+                  style={styles.input}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
                   <option value="お知らせ">お知らせ</option>
                   <option value="重要">重要</option>
                   <option value="イベント">イベント</option>
@@ -120,14 +165,23 @@ export default function NewPostPage() {
             </div>
 
             <label style={styles.label}>
-              <span>画像URL</span>
+              <span>画像アップロード</span>
               <input
+                type="file"
+                accept="image/*"
                 style={styles.input}
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setImageFile(file);
+                  setPreviewUrl(file ? URL.createObjectURL(file) : "");
+                }}
               />
             </label>
+
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt="preview" style={styles.preview} />
+            ) : null}
 
             <div style={styles.checkRow}>
               <label style={styles.checkLabel}>
@@ -233,6 +287,13 @@ const styles: Record<string, React.CSSProperties> = {
     resize: "vertical",
     boxSizing: "border-box",
     fontFamily: "inherit",
+  },
+  preview: {
+    width: "100%",
+    maxHeight: "280px",
+    objectFit: "cover",
+    borderRadius: "12px",
+    border: "1px solid #e5e7eb",
   },
   grid: {
     display: "grid",
