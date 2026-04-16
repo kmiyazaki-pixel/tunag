@@ -38,6 +38,19 @@ function trimText(text: string, max = 120) {
   return `${text.slice(0, max)}...`;
 }
 
+function getDeadlineStatus(required: boolean, deadline: string | null) {
+  if (!required) return "normal";
+  if (!deadline) return "required";
+
+  const now = new Date();
+  const limit = new Date(deadline);
+
+  if (Number.isNaN(limit.getTime())) return "required";
+  if (limit.getTime() < now.getTime()) return "expired";
+
+  return "active";
+}
+
 export default function PostListClient({ posts }: Props) {
   const [keyword, setKeyword] = useState("");
   const [category, setCategory] = useState("すべて");
@@ -112,44 +125,57 @@ export default function PostListClient({ posts }: Props) {
         {filteredPosts.length === 0 ? (
           <div style={styles.emptyBox}>条件に一致する投稿がありません。</div>
         ) : (
-          filteredPosts.map((post) => (
-            <article key={post.id} style={styles.postCard}>
-              {post.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={post.image_url} alt={post.title} style={styles.image} />
-              ) : null}
+          filteredPosts.map((post) => {
+            const deadlineStatus = getDeadlineStatus(post.required, post.required_deadline);
 
-              <div style={styles.postBody}>
-                <div style={styles.metaRow}>
-                  <span style={styles.category}>{post.category}</span>
-                  {post.required ? <span style={styles.required}>必読</span> : null}
-                  {post.is_pinned ? <span style={styles.pinned}>固定</span> : null}
+            return (
+              <article key={post.id} style={styles.postCard}>
+                {post.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={post.image_url} alt={post.title} style={styles.image} />
+                ) : null}
+
+                <div style={styles.postBody}>
+                  <div style={styles.metaRow}>
+                    <span style={styles.category}>{post.category}</span>
+                    {post.required ? <span style={styles.required}>必読</span> : null}
+                    {post.is_pinned ? <span style={styles.pinned}>固定</span> : null}
+                    {deadlineStatus === "expired" ? (
+                      <span style={styles.expired}>期限切れ</span>
+                    ) : null}
+                    {deadlineStatus === "active" ? (
+                      <span style={styles.deadlineActive}>期限あり</span>
+                    ) : null}
+                  </div>
+
+                  <h2 style={styles.postTitle}>
+                    <Link href={`/posts/${post.id}`} style={styles.postTitleLink}>
+                      {post.title}
+                    </Link>
+                  </h2>
+
+                  <p style={styles.postText}>{trimText(post.body, 140)}</p>
+
+                  <div style={styles.infoGrid}>
+                    <span>投稿者: {post.author}</span>
+                    <span>公開日: {formatDate(post.published_at)}</span>
+                    <span>既読: {post.actual_read_count ?? post.read_count ?? 0}</span>
+                    <span>コメント: {post.comment_count ?? 0}</span>
+                    <span>リアクション: {post.reaction_count ?? 0}</span>
+                    {post.required && post.required_deadline ? (
+                      <span>必読期限: {formatDate(post.required_deadline)}</span>
+                    ) : null}
+                  </div>
+
+                  <div style={styles.linkRow}>
+                    <Link href={`/posts/${post.id}`} style={styles.secondaryButton}>
+                      詳細を見る
+                    </Link>
+                  </div>
                 </div>
-
-                <h2 style={styles.postTitle}>
-                  <Link href={`/posts/${post.id}`} style={styles.postTitleLink}>
-                    {post.title}
-                  </Link>
-                </h2>
-
-                <p style={styles.postText}>{trimText(post.body, 140)}</p>
-
-                <div style={styles.infoGrid}>
-                  <span>投稿者: {post.author}</span>
-                  <span>公開日: {formatDate(post.published_at)}</span>
-                  <span>既読: {post.actual_read_count ?? post.read_count ?? 0}</span>
-                  <span>コメント: {post.comment_count ?? 0}</span>
-                  <span>リアクション: {post.reaction_count ?? 0}</span>
-                </div>
-
-                <div style={styles.linkRow}>
-                  <Link href={`/posts/${post.id}`} style={styles.secondaryButton}>
-                    詳細を見る
-                  </Link>
-                </div>
-              </div>
-            </article>
-          ))
+              </article>
+            );
+          })
         )}
       </section>
     </>
@@ -237,6 +263,22 @@ const styles: Record<string, React.CSSProperties> = {
   pinned: {
     background: "#ecfccb",
     color: "#3f6212",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+  expired: {
+    background: "#dc2626",
+    color: "#fff",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+  deadlineActive: {
+    background: "#fef3c7",
+    color: "#92400e",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
