@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import PostActions from "@/components/post-actions";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -124,26 +125,25 @@ export default async function PostDetailPage({ params }: PageProps) {
               <span>投稿者: {safePost.author}</span>
               <span>公開日: {formatDate(safePost.published_at)}</span>
               <span>更新日: {formatDate(safePost.updated_at)}</span>
+              {safePost.required && safePost.required_deadline ? (
+                <span>必読期限: {formatDate(safePost.required_deadline)}</span>
+              ) : null}
             </div>
 
             <p style={styles.body}>{safePost.body}</p>
-
-            <section style={styles.statsSection}>
-              <div style={styles.statCard}>
-                <div style={styles.statLabel}>既読数</div>
-                <div style={styles.statValue}>{safePost.actual_read_count ?? safePost.read_count ?? 0}</div>
-              </div>
-              <div style={styles.statCard}>
-                <div style={styles.statLabel}>コメント数</div>
-                <div style={styles.statValue}>{safePost.comment_count ?? 0}</div>
-              </div>
-              <div style={styles.statCard}>
-                <div style={styles.statLabel}>リアクション数</div>
-                <div style={styles.statValue}>{safePost.reaction_count ?? 0}</div>
-              </div>
-            </section>
           </div>
         </article>
+
+        <section style={styles.section}>
+          <h2 style={styles.sectionTitle}>アクション</h2>
+          <PostActions
+            postId={safePost.id}
+            initialReactionCount={safePost.reaction_count ?? 0}
+            initialReadCount={safePost.actual_read_count ?? safePost.read_count ?? 0}
+            currentReaderName="山田"
+            currentCommentAuthor="社員"
+          />
+        </section>
 
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>既読者</h2>
@@ -276,26 +276,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "16px",
     lineHeight: 1.9,
     whiteSpace: "pre-wrap",
-  },
-  statsSection: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-    gap: "12px",
-    marginTop: "24px",
-  },
-  statCard: {
-    background: "#f9fafb",
-    borderRadius: "14px",
-    padding: "16px",
-  },
-  statLabel: {
-    fontSize: "13px",
-    color: "#666",
-    marginBottom: "6px",
-  },
-  statValue: {
-    fontSize: "24px",
-    fontWeight: 700,
   },
   section: {
     background: "#fff",
