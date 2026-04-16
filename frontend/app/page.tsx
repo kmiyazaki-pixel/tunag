@@ -1,10 +1,8 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import PostListClient from "@/components/post-list-client";
-import AuthStatus from "@/components/auth-status";
 
 type PostSummary = {
   id: number;
@@ -58,13 +56,6 @@ export default async function HomePage() {
             <h1 style={styles.title}>社内ポータル</h1>
             <p style={styles.subtitle}>TUNAG風の社内報MVP</p>
           </div>
-
-          <div style={styles.headerActions}>
-            <Link href="/login" style={styles.secondaryButton}>
-              ログインページ
-            </Link>
-            <AuthStatus />
-          </div>
         </header>
 
         <section style={styles.dashboard}>
@@ -110,12 +101,6 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "24px",
     flexWrap: "wrap",
   },
-  headerActions: {
-    display: "flex",
-    gap: "12px",
-    alignItems: "center",
-    flexWrap: "wrap",
-  },
   title: {
     fontSize: "32px",
     fontWeight: 700,
@@ -144,15 +129,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   cardValue: {
     fontSize: "28px",
-    fontWeight: 700,
-  },
-  secondaryButton: {
-    display: "inline-block",
-    background: "#fff",
-    color: "#111",
-    textDecoration: "none",
-    padding: "12px 16px",
-    borderRadius: "10px",
     fontWeight: 700,
   },
   error: {
