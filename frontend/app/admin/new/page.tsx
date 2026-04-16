@@ -9,10 +9,7 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]/g, "_");
 }
 
-type UploadPreview = {
-  file: File;
-  previewUrl: string;
-};
+type PostStatus = "draft" | "published" | "archived";
 
 export default function NewPostPage() {
   const router = useRouter();
@@ -21,10 +18,12 @@ export default function NewPostPage() {
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("お知らせ");
   const [author, setAuthor] = useState("管理者");
+  const [status, setStatus] = useState<PostStatus>("published");
   const [required, setRequired] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [requiredDeadline, setRequiredDeadline] = useState("");
-  const [imageFiles, setImageFiles] = useState<UploadPreview[]>([]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -32,61 +31,27 @@ export default function NewPostPage() {
     return title.trim() !== "" && body.trim() !== "";
   }, [title, body]);
 
-  function handleFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
+  async function uploadImageIfNeeded() {
+    if (!imageFile) return null;
 
-    const next = files.map((file) => ({
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }));
+    const parts = imageFile.name.split(".");
+    const ext = parts.length > 1 ? parts[parts.length - 1] : "jpg";
+    const safeName = sanitizeFileName(imageFile.name.replace(/\.[^/.]+$/, ""));
+    const filePath = `posts/${Date.now()}-${safeName}.${ext}`;
 
-    setImageFiles((prev) => [...prev, ...next]);
+    const { error: uploadError } = await supabase.storage
+      .from("post-images")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
 
-    e.target.value = "";
-  }
-
-  function removeImage(index: number) {
-    setImageFiles((prev) => {
-      const target = prev[index];
-      if (target?.previewUrl) {
-        URL.revokeObjectURL(target.previewUrl);
-      }
-      return prev.filter((_, i) => i !== index);
-    });
-  }
-
-  async function uploadImages() {
-    if (imageFiles.length === 0) return [];
-
-    const uploadedUrls: string[] = [];
-
-    for (const item of imageFiles) {
-      const originalName = item.file.name;
-      const ext = originalName.includes(".")
-        ? originalName.split(".").pop() || "jpg"
-        : "jpg";
-      const safeBase = sanitizeFileName(originalName.replace(/\.[^.]+$/, ""));
-      const filePath = `posts/${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}-${safeBase}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("post-images")
-        .upload(filePath, item.file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
-      uploadedUrls.push(data.publicUrl);
+    if (uploadError) {
+      throw new Error(uploadError.message);
     }
 
-    return uploadedUrls;
+    const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
+    return data.publicUrl;
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -98,57 +63,47 @@ export default function NewPostPage() {
     setMessage(null);
 
     try {
-      const uploadedImageUrls = await uploadImages();
-      const mainImageUrl = uploadedImageUrls[0] ?? null;
+      const uploadedImageUrl = await uploadImageIfNeeded();
 
-      const postPayload = {
+      const payload = {
         title: title.trim(),
         body: body.trim(),
         category: category.trim() || "お知らせ",
         required,
         author: author.trim() || "管理者",
-        image_url: mainImageUrl,
-        status: "published",
+        image_url: uploadedImageUrl || null,
+        status,
         is_pinned: isPinned,
         required_deadline:
-          required && requiredDeadline
-            ? new Date(requiredDeadline).toISOString()
-            : null,
+          required && requiredDeadline ? new Date(requiredDeadline).toISOString() : null,
       };
 
-      const { data: post, error: postError } = await supabase
+      const { data, error } = await supabase
         .from("posts")
-        .insert([postPayload])
-        .select("id")
+        .insert([payload])
+        .select("id,status")
         .single();
 
-      if (postError || !post) {
-        throw new Error(postError?.message || "投稿保存に失敗しました。");
+      if (error) {
+        throw new Error(error.message);
       }
 
-      if (uploadedImageUrls.length > 0) {
-        const imageRows = uploadedImageUrls.map((url, index) => ({
-          post_id: post.id,
-          image_url: url,
-          sort_order: index,
-        }));
+      if (data?.id) {
+        router.refresh();
 
-        const { error: imageError } = await supabase.from("post_images").insert(imageRows);
-
-        if (imageError) {
-          throw new Error(imageError.message);
+        if (data.status === "published") {
+          router.push(`/posts/${data.id}`);
+          return;
         }
+
+        router.push("/");
+        return;
       }
 
-      imageFiles.forEach((item) => {
-        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-      });
-
-      router.refresh();
-      router.push(`/posts/${post.id}`);
+      router.push("/");
     } catch (err) {
-      const text = err instanceof Error ? err.message : "保存に失敗しました。";
-      setMessage(`保存に失敗しました: ${text}`);
+      const errorMessage = err instanceof Error ? err.message : "保存に失敗しました。";
+      setMessage(`保存に失敗しました: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -165,7 +120,7 @@ export default function NewPostPage() {
 
         <div style={styles.card}>
           <h1 style={styles.title}>新規投稿作成</h1>
-          <p style={styles.subtitle}>複数画像アップロード対応です。</p>
+          <p style={styles.subtitle}>下書き・公開・アーカイブを選べます。</p>
 
           <form onSubmit={handleSubmit} style={styles.form}>
             <label style={styles.label}>
@@ -192,7 +147,11 @@ export default function NewPostPage() {
             <div style={styles.grid}>
               <label style={styles.label}>
                 <span>カテゴリ</span>
-                <select style={styles.input} value={category} onChange={(e) => setCategory(e.target.value)}>
+                <select
+                  style={styles.input}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
                   <option value="お知らせ">お知らせ</option>
                   <option value="重要">重要</option>
                   <option value="イベント">イベント</option>
@@ -213,37 +172,35 @@ export default function NewPostPage() {
             </div>
 
             <label style={styles.label}>
-              <span>画像アップロード（複数可・追加選択可）</span>
+              <span>公開状態</span>
+              <select
+                style={styles.input}
+                value={status}
+                onChange={(e) => setStatus(e.target.value as PostStatus)}
+              >
+                <option value="draft">下書き</option>
+                <option value="published">公開</option>
+                <option value="archived">アーカイブ</option>
+              </select>
+            </label>
+
+            <label style={styles.label}>
+              <span>画像アップロード</span>
               <input
                 type="file"
                 accept="image/*"
-                multiple
                 style={styles.input}
-                onChange={handleFilesChange}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setImageFile(file);
+                  setPreviewUrl(file ? URL.createObjectURL(file) : "");
+                }}
               />
             </label>
 
-            {imageFiles.length > 0 ? (
-              <div style={styles.previewGrid}>
-                {imageFiles.map((item, index) => (
-                  <div key={`${item.file.name}-${index}`} style={styles.previewCard}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={item.previewUrl} alt={`preview-${index}`} style={styles.preview} />
-                    <div style={styles.previewFooter}>
-                      <span style={styles.previewText}>
-                        {index === 0 ? "メイン画像" : `画像 ${index + 1}`}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        style={styles.removeButton}
-                      >
-                        削除
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt="preview" style={styles.preview} />
             ) : null}
 
             <div style={styles.checkRow}>
@@ -278,9 +235,20 @@ export default function NewPostPage() {
               </label>
             ) : null}
 
+            <div style={styles.noteBox}>
+              現在の状態:{" "}
+              <strong>
+                {status === "draft"
+                  ? "下書き"
+                  : status === "published"
+                  ? "公開"
+                  : "アーカイブ"}
+              </strong>
+            </div>
+
             <div style={styles.buttonRow}>
               <button type="submit" style={styles.submitButton} disabled={!isValid || saving}>
-                {saving ? "保存中..." : "投稿を保存"}
+                {saving ? "保存中..." : "保存する"}
               </button>
             </div>
 
@@ -351,42 +319,12 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     fontFamily: "inherit",
   },
-  previewGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "14px",
-  },
-  previewCard: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    overflow: "hidden",
-    background: "#fafafa",
-  },
   preview: {
     width: "100%",
-    height: "160px",
+    maxHeight: "280px",
     objectFit: "cover",
-    display: "block",
-  },
-  previewFooter: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "8px",
-    padding: "10px 12px",
-  },
-  previewText: {
-    fontSize: "13px",
-    fontWeight: 700,
-  },
-  removeButton: {
-    background: "#fff",
-    color: "#dc2626",
-    border: "1px solid #fecaca",
-    borderRadius: "8px",
-    padding: "6px 10px",
-    cursor: "pointer",
-    fontWeight: 700,
+    borderRadius: "12px",
+    border: "1px solid #e5e7eb",
   },
   grid: {
     display: "grid",
@@ -403,6 +341,12 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: "8px",
     fontWeight: 600,
+  },
+  noteBox: {
+    background: "#f3f4f6",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    color: "#111",
   },
   buttonRow: {
     display: "flex",
