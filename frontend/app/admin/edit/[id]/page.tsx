@@ -5,6 +5,10 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
+function sanitizeFileName(name: string) {
+  return name.replace(/[^\w.\-]/g, "_");
+}
+
 export default function EditPostPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -20,6 +24,8 @@ export default function EditPostPage() {
   const [category, setCategory] = useState("お知らせ");
   const [author, setAuthor] = useState("管理者");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [required, setRequired] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [requiredDeadline, setRequiredDeadline] = useState("");
@@ -49,6 +55,7 @@ export default function EditPostPage() {
       setCategory(data.category ?? "お知らせ");
       setAuthor(data.author ?? "管理者");
       setImageUrl(data.image_url ?? "");
+      setPreviewUrl(data.image_url ?? "");
       setRequired(Boolean(data.required));
       setIsPinned(Boolean(data.is_pinned));
       setRequiredDeadline(
@@ -67,6 +74,28 @@ export default function EditPostPage() {
     return title.trim() !== "" && body.trim() !== "";
   }, [title, body]);
 
+  async function uploadImageIfNeeded() {
+    if (!imageFile) return imageUrl || null;
+
+    const fileExt = imageFile.name.split(".").pop() || "jpg";
+    const fileName = `${Date.now()}-${sanitizeFileName(imageFile.name)}`;
+    const filePath = `posts/${fileName}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("post-images")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(uploadError.message);
+    }
+
+    const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
+    return data.publicUrl;
+  }
+
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!isValid || saving || Number.isNaN(postId)) return;
@@ -74,32 +103,39 @@ export default function EditPostPage() {
     setSaving(true);
     setMessage(null);
 
-    const payload = {
-      title: title.trim(),
-      body: body.trim(),
-      category: category.trim() || "お知らせ",
-      author: author.trim() || "管理者",
-      image_url: imageUrl.trim() || null,
-      required,
-      is_pinned: isPinned,
-      required_deadline:
-        required && requiredDeadline
-          ? new Date(requiredDeadline).toISOString()
-          : null,
-      status: "published",
-    };
+    try {
+      const uploadedImageUrl = await uploadImageIfNeeded();
 
-    const { error } = await supabase.from("posts").update(payload).eq("id", postId);
+      const payload = {
+        title: title.trim(),
+        body: body.trim(),
+        category: category.trim() || "お知らせ",
+        author: author.trim() || "管理者",
+        image_url: uploadedImageUrl,
+        required,
+        is_pinned: isPinned,
+        required_deadline:
+          required && requiredDeadline
+            ? new Date(requiredDeadline).toISOString()
+            : null,
+        status: "published",
+      };
 
-    setSaving(false);
+      const { error } = await supabase.from("posts").update(payload).eq("id", postId);
 
-    if (error) {
-      setMessage(`更新に失敗しました: ${error.message}`);
-      return;
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      router.refresh();
+      router.push(`/posts/${postId}`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "更新に失敗しました。";
+      setMessage(`更新に失敗しました: ${message}`);
+    } finally {
+      setSaving(false);
     }
-
-    router.refresh();
-    router.push(`/posts/${postId}`);
   }
 
   async function handleDelete() {
@@ -145,7 +181,7 @@ export default function EditPostPage() {
 
         <div style={styles.card}>
           <h1 style={styles.title}>投稿を編集</h1>
-          <p style={styles.subtitle}>内容を更新できます。</p>
+          <p style={styles.subtitle}>画像も差し替えできます。</p>
 
           <form onSubmit={handleSave} style={styles.form}>
             <label style={styles.label}>
@@ -197,14 +233,23 @@ export default function EditPostPage() {
             </div>
 
             <label style={styles.label}>
-              <span>画像URL</span>
+              <span>画像アップロード</span>
               <input
+                type="file"
+                accept="image/*"
                 style={styles.input}
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setImageFile(file);
+                  setPreviewUrl(file ? URL.createObjectURL(file) : imageUrl);
+                }}
               />
             </label>
+
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt="preview" style={styles.preview} />
+            ) : null}
 
             <div style={styles.checkRow}>
               <label style={styles.checkLabel}>
@@ -323,6 +368,13 @@ const styles: Record<string, React.CSSProperties> = {
     resize: "vertical",
     boxSizing: "border-box",
     fontFamily: "inherit",
+  },
+  preview: {
+    width: "100%",
+    maxHeight: "280px",
+    objectFit: "cover",
+    borderRadius: "12px",
+    border: "1px solid #e5e7eb",
   },
   grid: {
     display: "grid",
