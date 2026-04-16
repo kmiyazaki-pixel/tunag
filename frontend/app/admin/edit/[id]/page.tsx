@@ -1,332 +1,374 @@
-import { redirect } from "next/navigation";
-import { Header } from "@/components/Header";
-import { fetchPost } from "@/lib/api";
+"use client";
 
-async function updatePost(id: string, formData: FormData) {
-  "use server";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://tunag.vercel.app").replace(/\/$/, "");
+export default function EditPostPage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const postId = Number(params.id);
 
-  const payload = {
-    title: String(formData.get("title") ?? ""),
-    body: String(formData.get("body") ?? ""),
-    category: String(formData.get("category") ?? "お知らせ"),
-    required: String(formData.get("required") ?? "") === "on",
-    author: String(formData.get("author") ?? "管理者"),
-    imageUrl: String(formData.get("imageUrl") ?? ""),
-  };
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const response = await fetch(`${baseUrl}/api/posts/${id}/update`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    cache: "no-store",
-  });
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [category, setCategory] = useState("お知らせ");
+  const [author, setAuthor] = useState("管理者");
+  const [imageUrl, setImageUrl] = useState("");
+  const [required, setRequired] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const [requiredDeadline, setRequiredDeadline] = useState("");
 
-  if (!response.ok) {
-    throw new Error(`updatePost failed: ${response.status}`);
+  useEffect(() => {
+    async function loadPost() {
+      if (Number.isNaN(postId)) {
+        setMessage("不正な投稿IDです。");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("id", postId)
+        .single();
+
+      if (error || !data) {
+        setMessage(`投稿の取得に失敗しました: ${error?.message ?? "not found"}`);
+        setLoading(false);
+        return;
+      }
+
+      setTitle(data.title ?? "");
+      setBody(data.body ?? "");
+      setCategory(data.category ?? "お知らせ");
+      setAuthor(data.author ?? "管理者");
+      setImageUrl(data.image_url ?? "");
+      setRequired(Boolean(data.required));
+      setIsPinned(Boolean(data.is_pinned));
+      setRequiredDeadline(
+        data.required_deadline
+          ? new Date(data.required_deadline).toISOString().slice(0, 16)
+          : ""
+      );
+
+      setLoading(false);
+    }
+
+    loadPost();
+  }, [postId]);
+
+  const isValid = useMemo(() => {
+    return title.trim() !== "" && body.trim() !== "";
+  }, [title, body]);
+
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!isValid || saving || Number.isNaN(postId)) return;
+
+    setSaving(true);
+    setMessage(null);
+
+    const payload = {
+      title: title.trim(),
+      body: body.trim(),
+      category: category.trim() || "お知らせ",
+      author: author.trim() || "管理者",
+      image_url: imageUrl.trim() || null,
+      required,
+      is_pinned: isPinned,
+      required_deadline:
+        required && requiredDeadline
+          ? new Date(requiredDeadline).toISOString()
+          : null,
+      status: "published",
+    };
+
+    const { error } = await supabase.from("posts").update(payload).eq("id", postId);
+
+    setSaving(false);
+
+    if (error) {
+      setMessage(`更新に失敗しました: ${error.message}`);
+      return;
+    }
+
+    router.refresh();
+    router.push(`/posts/${postId}`);
   }
 
-  redirect(`/posts/${id}`);
-}
+  async function handleDelete() {
+    if (deleting || Number.isNaN(postId)) return;
 
-export default async function AdminEditPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const post = await fetchPost(id);
+    const ok = window.confirm("この投稿を削除します。よろしいですか？");
+    if (!ok) return;
+
+    setDeleting(true);
+    setMessage(null);
+
+    const { error } = await supabase.from("posts").delete().eq("id", postId);
+
+    setDeleting(false);
+
+    if (error) {
+      setMessage(`削除に失敗しました: ${error.message}`);
+      return;
+    }
+
+    router.refresh();
+    router.push("/");
+  }
+
+  if (loading) {
+    return (
+      <main style={styles.main}>
+        <div style={styles.container}>
+          <div style={styles.card}>読み込み中...</div>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="container" style={{ paddingBottom: 56 }}>
-      <Header />
+    <main style={styles.main}>
+      <div style={styles.container}>
+        <div style={styles.topRow}>
+          <Link href={`/posts/${postId}`} style={styles.backLink}>
+            ← 投稿詳細へ戻る
+          </Link>
+        </div>
 
-      <section
-        style={{
-          marginTop: 24,
-          marginBottom: 24,
-          display: "grid",
-          gap: 10,
-        }}
-      >
-        <p
-          style={{
-            margin: 0,
-            color: "#6366f1",
-            fontWeight: 700,
-            fontSize: 14,
-            letterSpacing: "0.02em",
-          }}
-        >
-          社内報管理
-        </p>
+        <div style={styles.card}>
+          <h1 style={styles.title}>投稿を編集</h1>
+          <p style={styles.subtitle}>内容を更新できます。</p>
 
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 36,
-            lineHeight: 1.2,
-            color: "#0f172a",
-          }}
-        >
-          投稿を編集
-        </h1>
-
-        <p
-          style={{
-            margin: 0,
-            color: "#64748b",
-            fontSize: 15,
-            lineHeight: 1.8,
-            maxWidth: 720,
-          }}
-        >
-          既存の投稿内容を修正します。タイトル・本文・カテゴリ・画像・必読設定を更新できます。
-        </p>
-      </section>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.2fr 0.8fr",
-          gap: 24,
-          alignItems: "start",
-        }}
-      >
-        <section
-          className="card"
-          style={{
-            padding: 32,
-            borderRadius: 24,
-            background: "#ffffff",
-            boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
-          }}
-        >
-          <form action={updatePost.bind(null, id)} style={{ display: "grid", gap: 20 }}>
-            <div style={{ display: "grid", gap: 8 }}>
-              <label htmlFor="title" style={{ fontWeight: 700, color: "#111827", fontSize: 15 }}>
-                タイトル
-              </label>
+          <form onSubmit={handleSave} style={styles.form}>
+            <label style={styles.label}>
+              <span>タイトル</span>
               <input
-                id="title"
-                name="title"
-                type="text"
-                required
-                defaultValue={post.title}
-                style={{
-                  padding: "14px 16px",
-                  borderRadius: 14,
-                  border: "1px solid #d1d5db",
-                  fontSize: 15,
-                }}
+                style={styles.input}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="タイトルを入力"
               />
-            </div>
+            </label>
 
-            <div style={{ display: "grid", gap: 8 }}>
-              <label htmlFor="body" style={{ fontWeight: 700, color: "#111827", fontSize: 15 }}>
-                本文
-              </label>
+            <label style={styles.label}>
+              <span>本文</span>
               <textarea
-                id="body"
-                name="body"
-                rows={12}
-                required
-                defaultValue={post.body}
-                style={{
-                  padding: "14px 16px",
-                  borderRadius: 14,
-                  border: "1px solid #d1d5db",
-                  fontSize: 15,
-                  lineHeight: 1.8,
-                  resize: "vertical",
-                }}
+                style={styles.textarea}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="本文を入力"
+                rows={10}
               />
-            </div>
+            </label>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 16,
-              }}
-            >
-              <div style={{ display: "grid", gap: 8 }}>
-                <label htmlFor="category" style={{ fontWeight: 700, color: "#111827", fontSize: 15 }}>
-                  カテゴリ
-                </label>
+            <div style={styles.grid}>
+              <label style={styles.label}>
+                <span>カテゴリ</span>
                 <select
-                  id="category"
-                  name="category"
-                  defaultValue={post.category}
-                  style={{
-                    padding: "14px 16px",
-                    borderRadius: 14,
-                    border: "1px solid #d1d5db",
-                    fontSize: 15,
-                    background: "#fff",
-                  }}
+                  style={styles.input}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
                 >
                   <option value="お知らせ">お知らせ</option>
                   <option value="重要">重要</option>
                   <option value="イベント">イベント</option>
                   <option value="制度">制度</option>
-                  <option value="福利厚生">福利厚生</option>
+                  <option value="採用">採用</option>
                 </select>
-              </div>
-
-              <div style={{ display: "grid", gap: 8 }}>
-                <label htmlFor="author" style={{ fontWeight: 700, color: "#111827", fontSize: 15 }}>
-                  投稿者
-                </label>
-                <input
-                  id="author"
-                  name="author"
-                  type="text"
-                  defaultValue={post.author}
-                  style={{
-                    padding: "14px 16px",
-                    borderRadius: 14,
-                    border: "1px solid #d1d5db",
-                    fontSize: 15,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gap: 8 }}>
-              <label htmlFor="imageUrl" style={{ fontWeight: 700, color: "#111827", fontSize: 15 }}>
-                画像URL
               </label>
-              <input
-                id="imageUrl"
-                name="imageUrl"
-                type="text"
-                defaultValue={post.imageUrl ?? ""}
-                style={{
-                  padding: "14px 16px",
-                  borderRadius: 14,
-                  border: "1px solid #d1d5db",
-                  fontSize: 15,
-                }}
-              />
+
+              <label style={styles.label}>
+                <span>投稿者</span>
+                <input
+                  style={styles.input}
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  placeholder="管理者"
+                />
+              </label>
             </div>
 
-            <label
-              style={{
-                display: "flex",
-                gap: 12,
-                alignItems: "center",
-                padding: 16,
-                borderRadius: 16,
-                border: "1px solid #fecaca",
-                background: "#fef2f2",
-              }}
-            >
-              <input name="required" type="checkbox" defaultChecked={post.required} />
-              <div>
-                <div
-                  style={{
-                    fontWeight: 700,
-                    color: "#991b1b",
-                    fontSize: 15,
-                  }}
-                >
-                  必読投稿にする
-                </div>
-                <div
-                  style={{
-                    color: "#b91c1c",
-                    fontSize: 13,
-                    marginTop: 2,
-                  }}
-                >
-                  重要なお知らせとして強調表示されます
-                </div>
-              </div>
+            <label style={styles.label}>
+              <span>画像URL</span>
+              <input
+                style={styles.input}
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://..."
+              />
             </label>
 
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={styles.checkRow}>
+              <label style={styles.checkLabel}>
+                <input
+                  type="checkbox"
+                  checked={required}
+                  onChange={(e) => setRequired(e.target.checked)}
+                />
+                <span>必読にする</span>
+              </label>
+
+              <label style={styles.checkLabel}>
+                <input
+                  type="checkbox"
+                  checked={isPinned}
+                  onChange={(e) => setIsPinned(e.target.checked)}
+                />
+                <span>固定表示にする</span>
+              </label>
+            </div>
+
+            {required ? (
+              <label style={styles.label}>
+                <span>必読期限</span>
+                <input
+                  type="datetime-local"
+                  style={styles.input}
+                  value={requiredDeadline}
+                  onChange={(e) => setRequiredDeadline(e.target.value)}
+                />
+              </label>
+            ) : null}
+
+            <div style={styles.buttonRow}>
               <button
-                type="submit"
-                style={{
-                  border: "none",
-                  borderRadius: 9999,
-                  background: "#111827",
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  padding: "14px 24px",
-                  cursor: "pointer",
-                }}
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                style={styles.deleteButton}
               >
-                更新する
+                {deleting ? "削除中..." : "削除"}
               </button>
 
-              <a
-                href={`/posts/${id}`}
-                style={{
-                  textDecoration: "none",
-                  padding: "14px 20px",
-                  borderRadius: 9999,
-                  border: "1px solid #d1d5db",
-                  color: "#374151",
-                  fontWeight: 700,
-                  fontSize: 15,
-                }}
+              <button
+                type="submit"
+                disabled={!isValid || saving}
+                style={styles.submitButton}
               >
-                詳細へ戻る
-              </a>
+                {saving ? "更新中..." : "更新する"}
+              </button>
             </div>
+
+            {message ? <p style={styles.message}>{message}</p> : null}
           </form>
-        </section>
-
-        <aside
-          className="card"
-          style={{
-            padding: 24,
-            borderRadius: 24,
-            background: "#ffffff",
-            boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
-            display: "grid",
-            gap: 18,
-          }}
-        >
-          <div>
-            <h2 style={{ margin: "0 0 8px", fontSize: 20, color: "#0f172a" }}>
-              編集のヒント
-            </h2>
-            <p
-              style={{
-                margin: 0,
-                color: "#64748b",
-                fontSize: 14,
-                lineHeight: 1.8,
-              }}
-            >
-              更新後はすぐに一覧や詳細画面へ反映されます。タイトルやカテゴリ変更は一覧での見え方に大きく影響します。
-            </p>
-          </div>
-
-          <div
-            style={{
-              borderRadius: 18,
-              background: "#f8fafc",
-              border: "1px solid #e5e7eb",
-              padding: 18,
-            }}
-          >
-            <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>
-              現在の投稿情報
-            </div>
-            <div style={{ color: "#64748b", fontSize: 14, lineHeight: 1.8 }}>
-              <div>カテゴリ: {post.category}</div>
-              <div>投稿者: {post.author}</div>
-              <div>必読: {post.required ? "はい" : "いいえ"}</div>
-            </div>
-          </div>
-        </aside>
+        </div>
       </div>
     </main>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  main: {
+    minHeight: "100vh",
+    background: "#f5f7fb",
+    padding: "32px 16px",
+  },
+  container: {
+    maxWidth: "820px",
+    margin: "0 auto",
+  },
+  topRow: {
+    marginBottom: "20px",
+  },
+  backLink: {
+    textDecoration: "none",
+    color: "#2563eb",
+    fontWeight: 700,
+  },
+  card: {
+    background: "#fff",
+    borderRadius: "18px",
+    padding: "24px",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+  },
+  title: {
+    margin: "0 0 8px",
+    fontSize: "30px",
+  },
+  subtitle: {
+    margin: "0 0 20px",
+    color: "#666",
+  },
+  form: {
+    display: "grid",
+    gap: "18px",
+  },
+  label: {
+    display: "grid",
+    gap: "8px",
+    fontWeight: 600,
+  },
+  input: {
+    width: "100%",
+    padding: "12px 14px",
+    border: "1px solid #d1d5db",
+    borderRadius: "10px",
+    fontSize: "16px",
+    boxSizing: "border-box",
+  },
+  textarea: {
+    width: "100%",
+    padding: "12px 14px",
+    border: "1px solid #d1d5db",
+    borderRadius: "10px",
+    fontSize: "16px",
+    resize: "vertical",
+    boxSizing: "border-box",
+    fontFamily: "inherit",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "16px",
+  },
+  checkRow: {
+    display: "flex",
+    gap: "20px",
+    flexWrap: "wrap",
+  },
+  checkLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontWeight: 600,
+  },
+  buttonRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+  submitButton: {
+    background: "#111827",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "12px 18px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  deleteButton: {
+    background: "#dc2626",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "12px 18px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  message: {
+    margin: 0,
+    color: "#111",
+    background: "#f3f4f6",
+    padding: "12px 14px",
+    borderRadius: "10px",
+  },
+};
