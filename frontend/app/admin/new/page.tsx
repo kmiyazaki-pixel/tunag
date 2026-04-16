@@ -34,15 +34,26 @@ export default function NewPostPage() {
 
   function handleFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+
     const next = files.map((file) => ({
       file,
       previewUrl: URL.createObjectURL(file),
     }));
-    setImageFiles(next);
+
+    setImageFiles((prev) => [...prev, ...next]);
+
+    e.target.value = "";
   }
 
   function removeImage(index: number) {
-    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImageFiles((prev) => {
+      const target = prev[index];
+      if (target?.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   async function uploadImages() {
@@ -51,9 +62,14 @@ export default function NewPostPage() {
     const uploadedUrls: string[] = [];
 
     for (const item of imageFiles) {
-      const ext = item.file.name.split(".").pop() || "jpg";
-      const safeBase = sanitizeFileName(item.file.name.replace(/\.[^.]+$/, ""));
-      const filePath = `posts/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeBase}.${ext}`;
+      const originalName = item.file.name;
+      const ext = originalName.includes(".")
+        ? originalName.split(".").pop() || "jpg"
+        : "jpg";
+      const safeBase = sanitizeFileName(originalName.replace(/\.[^.]+$/, ""));
+      const filePath = `posts/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}-${safeBase}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from("post-images")
@@ -95,7 +111,9 @@ export default function NewPostPage() {
         status: "published",
         is_pinned: isPinned,
         required_deadline:
-          required && requiredDeadline ? new Date(requiredDeadline).toISOString() : null,
+          required && requiredDeadline
+            ? new Date(requiredDeadline).toISOString()
+            : null,
       };
 
       const { data: post, error: postError } = await supabase
@@ -121,6 +139,10 @@ export default function NewPostPage() {
           throw new Error(imageError.message);
         }
       }
+
+      imageFiles.forEach((item) => {
+        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      });
 
       router.refresh();
       router.push(`/posts/${post.id}`);
@@ -191,7 +213,7 @@ export default function NewPostPage() {
             </div>
 
             <label style={styles.label}>
-              <span>画像アップロード（複数可）</span>
+              <span>画像アップロード（複数可・追加選択可）</span>
               <input
                 type="file"
                 accept="image/*"
