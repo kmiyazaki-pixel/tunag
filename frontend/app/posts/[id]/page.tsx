@@ -104,9 +104,15 @@ export default async function PostDetailPage({ params }: PageProps) {
           <Link href="/" style={styles.backLink}>
             ← 一覧へ戻る
           </Link>
-          <Link href="/admin/new" style={styles.adminLink}>
-            新規投稿
-          </Link>
+
+          <div style={styles.topActions}>
+            <Link href={`/admin/edit/${safePost.id}`} style={styles.editLink}>
+              編集
+            </Link>
+            <Link href="/admin/new" style={styles.adminLink}>
+              新規投稿
+            </Link>
+          </div>
         </div>
 
         <article style={styles.article}>
@@ -205,6 +211,11 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "12px",
     flexWrap: "wrap",
   },
+  topActions: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
   backLink: {
     textDecoration: "none",
     color: "#2563eb",
@@ -214,6 +225,14 @@ const styles: Record<string, React.CSSProperties> = {
     textDecoration: "none",
     color: "#111",
     background: "#fff",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    fontWeight: 700,
+  },
+  editLink: {
+    textDecoration: "none",
+    color: "#fff",
+    background: "#111827",
     padding: "10px 14px",
     borderRadius: "10px",
     fontWeight: 700,
