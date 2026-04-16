@@ -78,7 +78,6 @@ export default function PostActions({
       ],
       {
         onConflict: "post_id,reader_name",
-        ignoreDuplicates: false,
       }
     );
 
@@ -89,7 +88,6 @@ export default function PostActions({
       return;
     }
 
-    setReadCount((prev) => prev + 1);
     setMessage("既読登録しました。");
     router.refresh();
   }
