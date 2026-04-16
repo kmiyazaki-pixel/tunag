@@ -43,12 +43,6 @@ type ReadRow = {
   read_at?: string | null;
 };
 
-type PostImage = {
-  id: number;
-  image_url: string;
-  sort_order: number;
-};
-
 function formatDate(value: string | null) {
   if (!value) return "日時未設定";
   const date = new Date(value);
@@ -83,30 +77,21 @@ export default async function PostDetailPage({ params }: PageProps) {
     );
   }
 
-  const [
-    { data: post, error: postError },
-    { data: comments },
-    { data: reads },
-    { data: images },
-  ] = await Promise.all([
-    supabase.from("post_summary").select("*").eq("id", postId).single(),
-    supabase
-      .from("post_comments")
-      .select("*")
-      .eq("post_id", postId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("post_reads")
-      .select("id, reader_name, created_at, read_at")
-      .eq("post_id", postId)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("post_images")
-      .select("*")
-      .eq("post_id", postId)
-      .order("sort_order", { ascending: true }),
-  ]);
+  const [{ data: post, error: postError }, { data: comments }, { data: reads }] =
+    await Promise.all([
+      supabase.from("post_summary").select("*").eq("id", postId).single(),
+      supabase
+        .from("post_comments")
+        .select("*")
+        .eq("post_id", postId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("post_reads")
+        .select("id, reader_name, created_at, read_at")
+        .eq("post_id", postId)
+        .order("created_at", { ascending: true }),
+    ]);
 
   if (postError || !post) {
     return (
@@ -124,7 +109,6 @@ export default async function PostDetailPage({ params }: PageProps) {
   const safePost = post as PostSummary;
   const safeComments = (comments ?? []) as Comment[];
   const safeReads = (reads ?? []) as ReadRow[];
-  const safeImages = (images ?? []) as PostImage[];
   const deadlineStatus = getDeadlineStatus(safePost.required, safePost.required_deadline);
 
   return (
@@ -136,6 +120,9 @@ export default async function PostDetailPage({ params }: PageProps) {
           </Link>
 
           <div style={styles.topActions}>
+            <Link href="/admin" style={styles.adminLink}>
+              投稿管理
+            </Link>
             <Link href={`/admin/edit/${safePost.id}`} style={styles.editLink}>
               編集
             </Link>
@@ -146,16 +133,7 @@ export default async function PostDetailPage({ params }: PageProps) {
         </div>
 
         <article style={styles.article}>
-          {safeImages.length > 0 ? (
-            <div style={styles.gallery}>
-              {safeImages.map((img, index) => (
-                <div key={img.id} style={styles.galleryItem}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.image_url} alt={`${safePost.title}-${index + 1}`} style={styles.image} />
-                </div>
-              ))}
-            </div>
-          ) : safePost.image_url ? (
+          {safePost.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={safePost.image_url} alt={safePost.title} style={styles.image} />
           ) : null}
@@ -299,20 +277,9 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
     marginBottom: "24px",
   },
-  gallery: {
-    display: "grid",
-    gap: "8px",
-    padding: "8px",
-    background: "#f3f4f6",
-  },
-  galleryItem: {
-    overflow: "hidden",
-    borderRadius: "12px",
-    background: "#fff",
-  },
   image: {
     width: "100%",
-    maxHeight: "420px",
+    height: "320px",
     objectFit: "cover",
     display: "block",
   },
