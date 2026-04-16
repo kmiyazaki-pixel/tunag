@@ -1,42 +1,90 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 type Props = {
   postId: number;
   initialReactionCount: number;
   initialReadCount: number;
-  currentReaderName?: string;
-  currentCommentAuthor?: string;
+};
+
+type MyProfile = {
+  id: string;
+  name: string;
+  role: "member" | "editor" | "admin";
 };
 
 export default function PostActions({
   postId,
   initialReactionCount,
   initialReadCount,
-  currentReaderName = "山田",
-  currentCommentAuthor = "社員",
 }: Props) {
   const router = useRouter();
 
   const [reactionCount, setReactionCount] = useState(initialReactionCount ?? 0);
-  const [readCount, setReadCount] = useState(initialReadCount ?? 0);
+  const [readCount] = useState(initialReadCount ?? 0);
   const [commentBody, setCommentBody] = useState("");
-  const [commentAuthor, setCommentAuthor] = useState(currentCommentAuthor);
-
   const [loadingLike, setLoadingLike] = useState(false);
   const [loadingRead, setLoadingRead] = useState(false);
   const [loadingComment, setLoadingComment] = useState(false);
-
   const [message, setMessage] = useState<string | null>(null);
+  const [profile, setProfile] = useState<MyProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadProfile() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+
+      if (!session?.user) {
+        setProfile(null);
+        setLoadingProfile(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("id,name,role")
+        .eq("auth_user_id", session.user.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      setProfile((data as MyProfile | null) ?? null);
+      setLoadingProfile(false);
+    }
+
+    loadProfile();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      loadProfile();
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const canSubmitComment = useMemo(() => {
-    return commentAuthor.trim() !== "" && commentBody.trim() !== "";
-  }, [commentAuthor, commentBody]);
+    return !!profile && commentBody.trim() !== "";
+  }, [profile, commentBody]);
 
   async function handleLike() {
+    if (!profile) {
+      setMessage("ログインしてください。");
+      return;
+    }
     if (loadingLike) return;
 
     setLoadingLike(true);
@@ -46,6 +94,7 @@ export default function PostActions({
       {
         post_id: postId,
         reaction_type: "like",
+        user_profile_id: profile.id,
       },
     ]);
 
@@ -62,18 +111,21 @@ export default function PostActions({
   }
 
   async function handleRead() {
+    if (!profile) {
+      setMessage("ログインしてください。");
+      return;
+    }
     if (loadingRead) return;
 
     setLoadingRead(true);
     setMessage(null);
 
-    const readerName = currentReaderName.trim() || "社員";
-
     const { error } = await supabase.from("post_reads").upsert(
       [
         {
           post_id: postId,
-          reader_name: readerName,
+          reader_name: profile.name,
+          reader_profile_id: profile.id,
         },
       ],
       {
@@ -94,6 +146,10 @@ export default function PostActions({
 
   async function handleCommentSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!profile) {
+      setMessage("ログインしてください。");
+      return;
+    }
     if (!canSubmitComment || loadingComment) return;
 
     setLoadingComment(true);
@@ -102,7 +158,8 @@ export default function PostActions({
     const { error } = await supabase.from("post_comments").insert([
       {
         post_id: postId,
-        author: commentAuthor.trim(),
+        author: profile.name,
+        author_profile_id: profile.id,
         body: commentBody.trim(),
       },
     ]);
@@ -132,12 +189,21 @@ export default function PostActions({
         </div>
       </div>
 
+      {!loadingProfile && !profile ? (
+        <div style={styles.loginBox}>
+          アクションにはログインが必要です。{" "}
+          <Link href="/login" style={styles.link}>
+            ログインする
+          </Link>
+        </div>
+      ) : null}
+
       <div style={styles.actionRow}>
-        <button type="button" onClick={handleRead} disabled={loadingRead} style={styles.secondaryButton}>
+        <button type="button" onClick={handleRead} disabled={loadingRead || !profile} style={styles.secondaryButton}>
           {loadingRead ? "登録中..." : "確認しました"}
         </button>
 
-        <button type="button" onClick={handleLike} disabled={loadingLike} style={styles.primaryButton}>
+        <button type="button" onClick={handleLike} disabled={loadingLike || !profile} style={styles.primaryButton}>
           {loadingLike ? "送信中..." : "いいね"}
         </button>
       </div>
@@ -146,23 +212,14 @@ export default function PostActions({
         <h3 style={styles.formTitle}>コメントを書く</h3>
 
         <label style={styles.label}>
-          <span>名前</span>
-          <input
-            style={styles.input}
-            value={commentAuthor}
-            onChange={(e) => setCommentAuthor(e.target.value)}
-            placeholder="社員"
-          />
-        </label>
-
-        <label style={styles.label}>
           <span>コメント</span>
           <textarea
             style={styles.textarea}
             value={commentBody}
             onChange={(e) => setCommentBody(e.target.value)}
-            placeholder="コメントを入力してください"
+            placeholder={profile ? "コメントを入力してください" : "ログインするとコメントできます"}
             rows={5}
+            disabled={!profile}
           />
         </label>
 
@@ -223,14 +280,6 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "8px",
     fontWeight: 600,
   },
-  input: {
-    width: "100%",
-    padding: "12px 14px",
-    border: "1px solid #d1d5db",
-    borderRadius: "10px",
-    fontSize: "16px",
-    boxSizing: "border-box",
-  },
   textarea: {
     width: "100%",
     padding: "12px 14px",
@@ -269,5 +318,16 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#fff",
     padding: "12px 14px",
     borderRadius: "10px",
+  },
+  loginBox: {
+    background: "#eef2ff",
+    color: "#1e3a8a",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontWeight: 700,
+  },
+  link: {
+    color: "#2563eb",
+    textDecoration: "none",
   },
 };
