@@ -35,6 +35,7 @@ type Comment = {
   author: string;
   body: string;
   created_at: string | null;
+  author_profile_id?: string | null;
 };
 
 type ReadRow = {
@@ -83,7 +84,7 @@ export default async function PostDetailPage({ params }: PageProps) {
       supabase.from("post_summary").select("*").eq("id", postId).single(),
       supabase
         .from("post_comments")
-        .select("*")
+        .select("id,post_id,author,body,created_at,author_profile_id")
         .eq("post_id", postId)
         .is("deleted_at", null)
         .order("created_at", { ascending: true }),
@@ -183,8 +184,6 @@ export default async function PostDetailPage({ params }: PageProps) {
             postId={safePost.id}
             initialReactionCount={safePost.reaction_count ?? 0}
             initialReadCount={safePost.actual_read_count ?? safePost.read_count ?? 0}
-            currentReaderName="山田"
-            currentCommentAuthor="社員"
           />
         </section>
 
