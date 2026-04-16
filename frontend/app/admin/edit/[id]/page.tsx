@@ -9,16 +9,7 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]/g, "_");
 }
 
-type ExistingImage = {
-  id: number;
-  image_url: string;
-  sort_order: number;
-};
-
-type UploadPreview = {
-  file: File;
-  previewUrl: string;
-};
+type PostStatus = "draft" | "published" | "archived";
 
 export default function EditPostPage() {
   const router = useRouter();
@@ -34,11 +25,13 @@ export default function EditPostPage() {
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("お知らせ");
   const [author, setAuthor] = useState("管理者");
+  const [status, setStatus] = useState<PostStatus>("published");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [required, setRequired] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [requiredDeadline, setRequiredDeadline] = useState("");
-  const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
-  const [newImages, setNewImages] = useState<UploadPreview[]>([]);
 
   useEffect(() => {
     async function loadPost() {
@@ -48,19 +41,14 @@ export default function EditPostPage() {
         return;
       }
 
-      const [{ data, error }, { data: images, error: imagesError }] = await Promise.all([
-        supabase.from("posts").select("*").eq("id", postId).single(),
-        supabase.from("post_images").select("*").eq("post_id", postId).order("sort_order"),
-      ]);
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("id", postId)
+        .single();
 
       if (error || !data) {
         setMessage(`投稿の取得に失敗しました: ${error?.message ?? "not found"}`);
-        setLoading(false);
-        return;
-      }
-
-      if (imagesError) {
-        setMessage(`画像の取得に失敗しました: ${imagesError.message}`);
         setLoading(false);
         return;
       }
@@ -69,14 +57,14 @@ export default function EditPostPage() {
       setBody(data.body ?? "");
       setCategory(data.category ?? "お知らせ");
       setAuthor(data.author ?? "管理者");
+      setStatus((data.status as PostStatus) ?? "published");
+      setImageUrl(data.image_url ?? "");
+      setPreviewUrl(data.image_url ?? "");
       setRequired(Boolean(data.required));
       setIsPinned(Boolean(data.is_pinned));
       setRequiredDeadline(
-        data.required_deadline
-          ? new Date(data.required_deadline).toISOString().slice(0, 16)
-          : ""
+        data.required_deadline ? new Date(data.required_deadline).toISOString().slice(0, 16) : ""
       );
-      setExistingImages((images ?? []) as ExistingImage[]);
 
       setLoading(false);
     }
@@ -88,65 +76,27 @@ export default function EditPostPage() {
     return title.trim() !== "" && body.trim() !== "";
   }, [title, body]);
 
-  function handleNewFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
+  async function uploadImageIfNeeded() {
+    if (!imageFile) return imageUrl || null;
 
-    const next = files.map((file) => ({
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }));
+    const parts = imageFile.name.split(".");
+    const ext = parts.length > 1 ? parts[parts.length - 1] : "jpg";
+    const safeName = sanitizeFileName(imageFile.name.replace(/\.[^/.]+$/, ""));
+    const filePath = `posts/${Date.now()}-${safeName}.${ext}`;
 
-    setNewImages((prev) => [...prev, ...next]);
+    const { error: uploadError } = await supabase.storage
+      .from("post-images")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
 
-    e.target.value = "";
-  }
-
-  function removeExistingImage(id: number) {
-    setExistingImages((prev) => prev.filter((img) => img.id !== id));
-  }
-
-  function removeNewImage(index: number) {
-    setNewImages((prev) => {
-      const target = prev[index];
-      if (target?.previewUrl) {
-        URL.revokeObjectURL(target.previewUrl);
-      }
-      return prev.filter((_, i) => i !== index);
-    });
-  }
-
-  async function uploadNewImages() {
-    if (newImages.length === 0) return [];
-
-    const urls: string[] = [];
-
-    for (const item of newImages) {
-      const originalName = item.file.name;
-      const ext = originalName.includes(".")
-        ? originalName.split(".").pop() || "jpg"
-        : "jpg";
-      const safeBase = sanitizeFileName(originalName.replace(/\.[^.]+$/, ""));
-      const filePath = `posts/${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}-${safeBase}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("post-images")
-        .upload(filePath, item.file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
-      urls.push(data.publicUrl);
+    if (uploadError) {
+      throw new Error(uploadError.message);
     }
 
-    return urls;
+    const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
+    return data.publicUrl;
   }
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
@@ -157,73 +107,38 @@ export default function EditPostPage() {
     setMessage(null);
 
     try {
-      const uploadedNewUrls = await uploadNewImages();
+      const uploadedImageUrl = await uploadImageIfNeeded();
 
-      const finalUrls = [
-        ...existingImages
-          .sort((a, b) => a.sort_order - b.sort_order)
-          .map((img) => img.image_url),
-        ...uploadedNewUrls,
-      ];
-
-      const mainImageUrl = finalUrls[0] ?? null;
-
-      const postPayload = {
+      const payload = {
         title: title.trim(),
         body: body.trim(),
         category: category.trim() || "お知らせ",
         author: author.trim() || "管理者",
-        image_url: mainImageUrl,
+        status,
+        image_url: uploadedImageUrl,
         required,
         is_pinned: isPinned,
         required_deadline:
-          required && requiredDeadline
-            ? new Date(requiredDeadline).toISOString()
-            : null,
-        status: "published",
+          required && requiredDeadline ? new Date(requiredDeadline).toISOString() : null,
       };
 
-      const { error: updatePostError } = await supabase
-        .from("posts")
-        .update(postPayload)
-        .eq("id", postId);
+      const { error } = await supabase.from("posts").update(payload).eq("id", postId);
 
-      if (updatePostError) {
-        throw new Error(updatePostError.message);
+      if (error) {
+        throw new Error(error.message);
       }
-
-      const { error: deleteImagesError } = await supabase
-        .from("post_images")
-        .delete()
-        .eq("post_id", postId);
-
-      if (deleteImagesError) {
-        throw new Error(deleteImagesError.message);
-      }
-
-      if (finalUrls.length > 0) {
-        const rows = finalUrls.map((url, index) => ({
-          post_id: postId,
-          image_url: url,
-          sort_order: index,
-        }));
-
-        const { error: insertImagesError } = await supabase.from("post_images").insert(rows);
-
-        if (insertImagesError) {
-          throw new Error(insertImagesError.message);
-        }
-      }
-
-      newImages.forEach((item) => {
-        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-      });
 
       router.refresh();
-      router.push(`/posts/${postId}`);
+
+      if (status === "published") {
+        router.push(`/posts/${postId}`);
+        return;
+      }
+
+      router.push("/");
     } catch (err) {
-      const text = err instanceof Error ? err.message : "更新に失敗しました。";
-      setMessage(`更新に失敗しました: ${text}`);
+      const errorMessage = err instanceof Error ? err.message : "更新に失敗しました。";
+      setMessage(`更新に失敗しました: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -272,7 +187,7 @@ export default function EditPostPage() {
 
         <div style={styles.card}>
           <h1 style={styles.title}>投稿を編集</h1>
-          <p style={styles.subtitle}>複数画像の追加・削除に対応しています。</p>
+          <p style={styles.subtitle}>公開状態も切り替えできます。</p>
 
           <form onSubmit={handleSave} style={styles.form}>
             <label style={styles.label}>
@@ -299,7 +214,11 @@ export default function EditPostPage() {
             <div style={styles.grid}>
               <label style={styles.label}>
                 <span>カテゴリ</span>
-                <select style={styles.input} value={category} onChange={(e) => setCategory(e.target.value)}>
+                <select
+                  style={styles.input}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
                   <option value="お知らせ">お知らせ</option>
                   <option value="重要">重要</option>
                   <option value="イベント">イベント</option>
@@ -319,64 +238,36 @@ export default function EditPostPage() {
               </label>
             </div>
 
-            <div style={styles.block}>
-              <div style={styles.blockTitle}>現在の画像</div>
-              {existingImages.length === 0 ? (
-                <div style={styles.emptyText}>画像はありません。</div>
-              ) : (
-                <div style={styles.previewGrid}>
-                  {existingImages.map((img, index) => (
-                    <div key={img.id} style={styles.previewCard}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={img.image_url} alt={`existing-${index}`} style={styles.preview} />
-                      <div style={styles.previewFooter}>
-                        <span style={styles.previewText}>
-                          {index === 0 ? "メイン画像" : `画像 ${index + 1}`}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeExistingImage(img.id)}
-                          style={styles.removeButton}
-                        >
-                          外す
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <label style={styles.label}>
+              <span>公開状態</span>
+              <select
+                style={styles.input}
+                value={status}
+                onChange={(e) => setStatus(e.target.value as PostStatus)}
+              >
+                <option value="draft">下書き</option>
+                <option value="published">公開</option>
+                <option value="archived">アーカイブ</option>
+              </select>
+            </label>
 
             <label style={styles.label}>
-              <span>画像追加（複数可・追加選択可）</span>
+              <span>画像アップロード</span>
               <input
                 type="file"
                 accept="image/*"
-                multiple
                 style={styles.input}
-                onChange={handleNewFilesChange}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setImageFile(file);
+                  setPreviewUrl(file ? URL.createObjectURL(file) : imageUrl);
+                }}
               />
             </label>
 
-            {newImages.length > 0 ? (
-              <div style={styles.previewGrid}>
-                {newImages.map((item, index) => (
-                  <div key={`${item.file.name}-${index}`} style={styles.previewCard}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={item.previewUrl} alt={`new-${index}`} style={styles.preview} />
-                    <div style={styles.previewFooter}>
-                      <span style={styles.previewText}>追加画像 {index + 1}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeNewImage(index)}
-                        style={styles.removeButton}
-                      >
-                        削除
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt="preview" style={styles.preview} />
             ) : null}
 
             <div style={styles.checkRow}>
@@ -410,6 +301,17 @@ export default function EditPostPage() {
                 />
               </label>
             ) : null}
+
+            <div style={styles.noteBox}>
+              現在の状態:{" "}
+              <strong>
+                {status === "draft"
+                  ? "下書き"
+                  : status === "published"
+                  ? "公開"
+                  : "アーカイブ"}
+              </strong>
+            </div>
 
             <div style={styles.buttonRow}>
               <button
@@ -497,52 +399,12 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     fontFamily: "inherit",
   },
-  block: {
-    display: "grid",
-    gap: "10px",
-  },
-  blockTitle: {
-    fontWeight: 700,
-  },
-  emptyText: {
-    color: "#666",
-  },
-  previewGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "14px",
-  },
-  previewCard: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    overflow: "hidden",
-    background: "#fafafa",
-  },
   preview: {
     width: "100%",
-    height: "160px",
+    maxHeight: "280px",
     objectFit: "cover",
-    display: "block",
-  },
-  previewFooter: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "8px",
-    padding: "10px 12px",
-  },
-  previewText: {
-    fontSize: "13px",
-    fontWeight: 700,
-  },
-  removeButton: {
-    background: "#fff",
-    color: "#dc2626",
-    border: "1px solid #fecaca",
-    borderRadius: "8px",
-    padding: "6px 10px",
-    cursor: "pointer",
-    fontWeight: 700,
+    borderRadius: "12px",
+    border: "1px solid #e5e7eb",
   },
   grid: {
     display: "grid",
@@ -559,6 +421,12 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: "8px",
     fontWeight: 600,
+  },
+  noteBox: {
+    background: "#f3f4f6",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    color: "#111",
   },
   buttonRow: {
     display: "flex",
