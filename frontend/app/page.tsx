@@ -50,12 +50,12 @@ export default async function HomePage() {
     );
   }
 
-  const posts = (data ?? []).filter((post: PostSummary) => post.status === "published");
+  const posts = ((data ?? []) as PostSummary[]).filter((post) => post.status === "published");
 
   const totalPosts = posts.length;
-  const totalReads = posts.reduce((sum: number, post: PostSummary) => sum + (post.actual_read_count ?? 0), 0);
-  const totalComments = posts.reduce((sum: number, post: PostSummary) => sum + (post.comment_count ?? 0), 0);
-  const totalReactions = posts.reduce((sum: number, post: PostSummary) => sum + (post.reaction_count ?? 0), 0);
+  const totalReads = posts.reduce((sum, post) => sum + (post.actual_read_count ?? 0), 0);
+  const totalComments = posts.reduce((sum, post) => sum + (post.comment_count ?? 0), 0);
+  const totalReactions = posts.reduce((sum, post) => sum + (post.reaction_count ?? 0), 0);
 
   return (
     <main style={styles.main}>
@@ -95,7 +95,7 @@ export default async function HomePage() {
           {posts.length === 0 ? (
             <div style={styles.emptyBox}>投稿がまだありません。</div>
           ) : (
-            posts.map((post: PostSummary) => (
+            posts.map((post) => (
               <article key={post.id} style={styles.postCard}>
                 {post.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
