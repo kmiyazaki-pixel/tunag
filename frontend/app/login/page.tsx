@@ -68,8 +68,8 @@ export default function LoginPage() {
         <h1 style={styles.title}>{mode === "login" ? "ログイン" : "新規登録"}</h1>
         <p style={styles.subtitle}>
           {mode === "login"
-            ? "ログインするとコメント・既読・いいねができます。"
-            : "登録後、必要なら admin 権限を付けて使います。"}
+            ? "メールアドレスとパスワードでログインします。"
+            : "まずはアカウントを作成します。"}
         </p>
 
         <form onSubmit={handleSubmit} style={styles.form}>
