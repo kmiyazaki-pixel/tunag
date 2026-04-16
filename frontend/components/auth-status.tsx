@@ -4,16 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-type Profile = {
-  id: string;
-  name: string;
+type UserInfo = {
   email: string | null;
-  role: "member" | "editor" | "admin";
+  name: string | null;
 };
 
 export default function AuthStatus() {
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -26,20 +24,15 @@ export default function AuthStatus() {
       if (!mounted) return;
 
       if (!session?.user) {
-        setProfile(null);
+        setUserInfo(null);
         setLoading(false);
         return;
       }
 
-      const { data } = await supabase
-        .from("profiles")
-        .select("id,name,email,role")
-        .eq("auth_user_id", session.user.id)
-        .maybeSingle();
-
-      if (!mounted) return;
-
-      setProfile((data as Profile | null) ?? null);
+      setUserInfo({
+        email: session.user.email ?? null,
+        name: (session.user.user_metadata?.name as string | undefined) ?? null,
+      });
       setLoading(false);
     }
 
@@ -66,7 +59,7 @@ export default function AuthStatus() {
     return <div style={styles.box}>読み込み中...</div>;
   }
 
-  if (!profile) {
+  if (!userInfo) {
     return (
       <div style={styles.row}>
         <Link href="/login" style={styles.primaryButton}>
@@ -79,7 +72,7 @@ export default function AuthStatus() {
   return (
     <div style={styles.row}>
       <div style={styles.box}>
-        {profile.name} / {profile.role}
+        {userInfo.name || userInfo.email || "ログイン中"}
       </div>
       <button type="button" onClick={handleLogout} style={styles.secondaryButton}>
         ログアウト
