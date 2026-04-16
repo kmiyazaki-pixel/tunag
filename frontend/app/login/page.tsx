@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -59,12 +58,6 @@ export default function LoginPage() {
   return (
     <main style={styles.main}>
       <div style={styles.card}>
-        <div style={styles.topRow}>
-          <Link href="/" style={styles.backLink}>
-            ← 一覧へ戻る
-          </Link>
-        </div>
-
         <h1 style={styles.title}>{mode === "login" ? "ログイン" : "新規登録"}</h1>
         <p style={styles.subtitle}>
           {mode === "login"
@@ -146,14 +139,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "18px",
     padding: "24px",
     boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
-  },
-  topRow: {
-    marginBottom: "12px",
-  },
-  backLink: {
-    textDecoration: "none",
-    color: "#2563eb",
-    fontWeight: 700,
   },
   title: {
     margin: "0 0 8px",
