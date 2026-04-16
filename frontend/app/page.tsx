@@ -60,11 +60,8 @@ export default async function HomePage() {
           </div>
 
           <div style={styles.headerActions}>
-            <Link href="/admin" style={styles.secondaryButton}>
-              投稿管理
-            </Link>
-            <Link href="/admin/new" style={styles.primaryButton}>
-              新規投稿
+            <Link href="/login" style={styles.secondaryButton}>
+              ログインページ
             </Link>
             <AuthStatus />
           </div>
@@ -147,15 +144,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   cardValue: {
     fontSize: "28px",
-    fontWeight: 700,
-  },
-  primaryButton: {
-    display: "inline-block",
-    background: "#111827",
-    color: "#fff",
-    textDecoration: "none",
-    padding: "12px 16px",
-    borderRadius: "10px",
     fontWeight: 700,
   },
   secondaryButton: {
