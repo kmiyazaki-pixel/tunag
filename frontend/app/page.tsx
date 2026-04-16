@@ -3,6 +3,7 @@ export const revalidate = 0;
 
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import PostListClient from "@/components/post-list-client";
 
 type PostSummary = {
   id: number;
@@ -22,18 +23,6 @@ type PostSummary = {
   comment_count: number;
   actual_read_count: number;
 };
-
-function formatDate(value: string | null) {
-  if (!value) return "日時未設定";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "日時不明";
-  return date.toLocaleString("ja-JP");
-}
-
-function trimText(text: string, max = 120) {
-  if (text.length <= max) return text;
-  return `${text.slice(0, max)}...`;
-}
 
 export default async function HomePage() {
   const { data, error } = await supabase
@@ -94,50 +83,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section style={styles.listSection}>
-          {posts.length === 0 ? (
-            <div style={styles.emptyBox}>投稿がまだありません。</div>
-          ) : (
-            posts.map((post) => (
-              <article key={post.id} style={styles.postCard}>
-                {post.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={post.image_url} alt={post.title} style={styles.image} />
-                ) : null}
-
-                <div style={styles.postBody}>
-                  <div style={styles.metaRow}>
-                    <span style={styles.category}>{post.category}</span>
-                    {post.required ? <span style={styles.required}>必読</span> : null}
-                    {post.is_pinned ? <span style={styles.pinned}>固定</span> : null}
-                  </div>
-
-                  <h2 style={styles.postTitle}>
-                    <Link href={`/posts/${post.id}`} style={styles.postTitleLink}>
-                      {post.title}
-                    </Link>
-                  </h2>
-
-                  <p style={styles.postText}>{trimText(post.body, 140)}</p>
-
-                  <div style={styles.infoGrid}>
-                    <span>投稿者: {post.author}</span>
-                    <span>公開日: {formatDate(post.published_at)}</span>
-                    <span>既読: {post.actual_read_count ?? post.read_count ?? 0}</span>
-                    <span>コメント: {post.comment_count ?? 0}</span>
-                    <span>リアクション: {post.reaction_count ?? 0}</span>
-                  </div>
-
-                  <div style={styles.linkRow}>
-                    <Link href={`/posts/${post.id}`} style={styles.secondaryButton}>
-                      詳細を見る
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ))
-          )}
-        </section>
+        <PostListClient posts={posts} />
       </div>
     </main>
   );
@@ -195,79 +141,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "28px",
     fontWeight: 700,
   },
-  listSection: {
-    display: "grid",
-    gap: "20px",
-  },
-  postCard: {
-    background: "#fff",
-    borderRadius: "18px",
-    overflow: "hidden",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
-  },
-  image: {
-    width: "100%",
-    height: "240px",
-    objectFit: "cover",
-    display: "block",
-  },
-  postBody: {
-    padding: "20px",
-  },
-  metaRow: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap",
-    marginBottom: "12px",
-  },
-  category: {
-    background: "#eef2ff",
-    padding: "6px 10px",
-    borderRadius: "999px",
-    fontSize: "12px",
-    fontWeight: 700,
-  },
-  required: {
-    background: "#fee2e2",
-    color: "#b91c1c",
-    padding: "6px 10px",
-    borderRadius: "999px",
-    fontSize: "12px",
-    fontWeight: 700,
-  },
-  pinned: {
-    background: "#ecfccb",
-    color: "#3f6212",
-    padding: "6px 10px",
-    borderRadius: "999px",
-    fontSize: "12px",
-    fontWeight: 700,
-  },
-  postTitle: {
-    margin: "0 0 12px",
-    fontSize: "24px",
-  },
-  postTitleLink: {
-    color: "#111",
-    textDecoration: "none",
-  },
-  postText: {
-    color: "#444",
-    lineHeight: 1.7,
-    marginBottom: "16px",
-  },
-  infoGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "8px",
-    color: "#666",
-    fontSize: "14px",
-    marginBottom: "16px",
-  },
-  linkRow: {
-    display: "flex",
-    justifyContent: "flex-end",
-  },
   primaryButton: {
     display: "inline-block",
     background: "#111827",
@@ -276,22 +149,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "12px 16px",
     borderRadius: "10px",
     fontWeight: 700,
-  },
-  secondaryButton: {
-    display: "inline-block",
-    background: "#f3f4f6",
-    color: "#111",
-    textDecoration: "none",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    fontWeight: 700,
-  },
-  emptyBox: {
-    background: "#fff",
-    borderRadius: "16px",
-    padding: "32px",
-    textAlign: "center",
-    color: "#666",
   },
   error: {
     color: "#b91c1c",
