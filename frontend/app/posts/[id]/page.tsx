@@ -50,6 +50,19 @@ function formatDate(value: string | null) {
   return date.toLocaleString("ja-JP");
 }
 
+function getDeadlineStatus(required: boolean, deadline: string | null) {
+  if (!required) return "normal";
+  if (!deadline) return "required";
+
+  const now = new Date();
+  const limit = new Date(deadline);
+
+  if (Number.isNaN(limit.getTime())) return "required";
+  if (limit.getTime() < now.getTime()) return "expired";
+
+  return "active";
+}
+
 export default async function PostDetailPage({ params }: PageProps) {
   const { id } = await params;
   const postId = Number(id);
@@ -96,6 +109,7 @@ export default async function PostDetailPage({ params }: PageProps) {
   const safePost = post as PostSummary;
   const safeComments = (comments ?? []) as Comment[];
   const safeReads = (reads ?? []) as ReadRow[];
+  const deadlineStatus = getDeadlineStatus(safePost.required, safePost.required_deadline);
 
   return (
     <main style={styles.main}>
@@ -126,6 +140,8 @@ export default async function PostDetailPage({ params }: PageProps) {
               <span style={styles.category}>{safePost.category}</span>
               {safePost.required ? <span style={styles.required}>必読</span> : null}
               {safePost.is_pinned ? <span style={styles.pinned}>固定</span> : null}
+              {deadlineStatus === "expired" ? <span style={styles.expired}>期限切れ</span> : null}
+              {deadlineStatus === "active" ? <span style={styles.deadlineActive}>期限あり</span> : null}
             </div>
 
             <h1 style={styles.title}>{safePost.title}</h1>
@@ -138,6 +154,20 @@ export default async function PostDetailPage({ params }: PageProps) {
                 <span>必読期限: {formatDate(safePost.required_deadline)}</span>
               ) : null}
             </div>
+
+            {deadlineStatus === "expired" ? (
+              <div style={styles.alertExpired}>この必読投稿は期限切れです。</div>
+            ) : null}
+
+            {deadlineStatus === "active" ? (
+              <div style={styles.alertActive}>
+                この投稿は必読です。期限は {formatDate(safePost.required_deadline)} です。
+              </div>
+            ) : null}
+
+            {deadlineStatus === "required" ? (
+              <div style={styles.alertRequired}>この投稿は必読です。</div>
+            ) : null}
 
             <p style={styles.body}>{safePost.body}</p>
           </div>
@@ -282,6 +312,22 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "12px",
     fontWeight: 700,
   },
+  expired: {
+    background: "#dc2626",
+    color: "#fff",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+  deadlineActive: {
+    background: "#fef3c7",
+    color: "#92400e",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
   title: {
     fontSize: "32px",
     margin: "0 0 16px",
@@ -293,6 +339,30 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#666",
     fontSize: "14px",
     marginBottom: "20px",
+  },
+  alertExpired: {
+    background: "#fee2e2",
+    color: "#991b1b",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontWeight: 700,
+    marginBottom: "18px",
+  },
+  alertActive: {
+    background: "#fef3c7",
+    color: "#92400e",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontWeight: 700,
+    marginBottom: "18px",
+  },
+  alertRequired: {
+    background: "#eef2ff",
+    color: "#1e3a8a",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontWeight: 700,
+    marginBottom: "18px",
   },
   body: {
     fontSize: "16px",
