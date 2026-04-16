@@ -9,6 +9,17 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]/g, "_");
 }
 
+type ExistingImage = {
+  id: number;
+  image_url: string;
+  sort_order: number;
+};
+
+type UploadPreview = {
+  file: File;
+  previewUrl: string;
+};
+
 export default function EditPostPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -23,12 +34,11 @@ export default function EditPostPage() {
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("お知らせ");
   const [author, setAuthor] = useState("管理者");
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState("");
   const [required, setRequired] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [requiredDeadline, setRequiredDeadline] = useState("");
+  const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
+  const [newImages, setNewImages] = useState<UploadPreview[]>([]);
 
   useEffect(() => {
     async function loadPost() {
@@ -38,14 +48,19 @@ export default function EditPostPage() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("id", postId)
-        .single();
+      const [{ data, error }, { data: images, error: imagesError }] = await Promise.all([
+        supabase.from("posts").select("*").eq("id", postId).single(),
+        supabase.from("post_images").select("*").eq("post_id", postId).order("sort_order"),
+      ]);
 
       if (error || !data) {
         setMessage(`投稿の取得に失敗しました: ${error?.message ?? "not found"}`);
+        setLoading(false);
+        return;
+      }
+
+      if (imagesError) {
+        setMessage(`画像の取得に失敗しました: ${imagesError.message}`);
         setLoading(false);
         return;
       }
@@ -54,8 +69,6 @@ export default function EditPostPage() {
       setBody(data.body ?? "");
       setCategory(data.category ?? "お知らせ");
       setAuthor(data.author ?? "管理者");
-      setImageUrl(data.image_url ?? "");
-      setPreviewUrl(data.image_url ?? "");
       setRequired(Boolean(data.required));
       setIsPinned(Boolean(data.is_pinned));
       setRequiredDeadline(
@@ -63,6 +76,7 @@ export default function EditPostPage() {
           ? new Date(data.required_deadline).toISOString().slice(0, 16)
           : ""
       );
+      setExistingImages((images ?? []) as ExistingImage[]);
 
       setLoading(false);
     }
@@ -74,26 +88,49 @@ export default function EditPostPage() {
     return title.trim() !== "" && body.trim() !== "";
   }, [title, body]);
 
-  async function uploadImageIfNeeded() {
-    if (!imageFile) return imageUrl || null;
+  function handleNewFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    const next = files.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    setNewImages(next);
+  }
 
-    const fileExt = imageFile.name.split(".").pop() || "jpg";
-    const fileName = `${Date.now()}-${sanitizeFileName(imageFile.name)}`;
-    const filePath = `posts/${fileName}.${fileExt}`;
+  function removeExistingImage(id: number) {
+    setExistingImages((prev) => prev.filter((img) => img.id !== id));
+  }
 
-    const { error: uploadError } = await supabase.storage
-      .from("post-images")
-      .upload(filePath, imageFile, {
-        cacheControl: "3600",
-        upsert: false,
-      });
+  function removeNewImage(index: number) {
+    setNewImages((prev) => prev.filter((_, i) => i !== index));
+  }
 
-    if (uploadError) {
-      throw new Error(uploadError.message);
+  async function uploadNewImages() {
+    if (newImages.length === 0) return [];
+
+    const urls: string[] = [];
+
+    for (const item of newImages) {
+      const ext = item.file.name.split(".").pop() || "jpg";
+      const safeBase = sanitizeFileName(item.file.name.replace(/\.[^.]+$/, ""));
+      const filePath = `posts/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeBase}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("post-images")
+        .upload(filePath, item.file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
+      urls.push(data.publicUrl);
     }
 
-    const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
-    return data.publicUrl;
+    return urls;
   }
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
@@ -104,35 +141,67 @@ export default function EditPostPage() {
     setMessage(null);
 
     try {
-      const uploadedImageUrl = await uploadImageIfNeeded();
+      const uploadedNewUrls = await uploadNewImages();
 
-      const payload = {
+      const finalUrls = [
+        ...existingImages
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((img) => img.image_url),
+        ...uploadedNewUrls,
+      ];
+
+      const mainImageUrl = finalUrls[0] ?? null;
+
+      const postPayload = {
         title: title.trim(),
         body: body.trim(),
         category: category.trim() || "お知らせ",
         author: author.trim() || "管理者",
-        image_url: uploadedImageUrl,
+        image_url: mainImageUrl,
         required,
         is_pinned: isPinned,
         required_deadline:
-          required && requiredDeadline
-            ? new Date(requiredDeadline).toISOString()
-            : null,
+          required && requiredDeadline ? new Date(requiredDeadline).toISOString() : null,
         status: "published",
       };
 
-      const { error } = await supabase.from("posts").update(payload).eq("id", postId);
+      const { error: updatePostError } = await supabase
+        .from("posts")
+        .update(postPayload)
+        .eq("id", postId);
 
-      if (error) {
-        throw new Error(error.message);
+      if (updatePostError) {
+        throw new Error(updatePostError.message);
+      }
+
+      const { error: deleteImagesError } = await supabase
+        .from("post_images")
+        .delete()
+        .eq("post_id", postId);
+
+      if (deleteImagesError) {
+        throw new Error(deleteImagesError.message);
+      }
+
+      if (finalUrls.length > 0) {
+        const rows = finalUrls.map((url, index) => ({
+          post_id: postId,
+          image_url: url,
+          sort_order: index,
+        }));
+
+        const { error: insertImagesError } = await supabase.from("post_images").insert(rows);
+
+        if (insertImagesError) {
+          throw new Error(insertImagesError.message);
+        }
       }
 
       router.refresh();
       router.push(`/posts/${postId}`);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "更新に失敗しました。";
-      setMessage(`更新に失敗しました: ${message}`);
+      const text = err instanceof Error ? err.message : "更新に失敗しました。";
+      setMessage(`更新に失敗しました: ${text}`);
     } finally {
       setSaving(false);
     }
@@ -181,7 +250,7 @@ export default function EditPostPage() {
 
         <div style={styles.card}>
           <h1 style={styles.title}>投稿を編集</h1>
-          <p style={styles.subtitle}>画像も差し替えできます。</p>
+          <p style={styles.subtitle}>複数画像の追加・削除に対応しています。</p>
 
           <form onSubmit={handleSave} style={styles.form}>
             <label style={styles.label}>
@@ -208,11 +277,7 @@ export default function EditPostPage() {
             <div style={styles.grid}>
               <label style={styles.label}>
                 <span>カテゴリ</span>
-                <select
-                  style={styles.input}
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
+                <select style={styles.input} value={category} onChange={(e) => setCategory(e.target.value)}>
                   <option value="お知らせ">お知らせ</option>
                   <option value="重要">重要</option>
                   <option value="イベント">イベント</option>
@@ -232,23 +297,64 @@ export default function EditPostPage() {
               </label>
             </div>
 
+            <div style={styles.block}>
+              <div style={styles.blockTitle}>現在の画像</div>
+              {existingImages.length === 0 ? (
+                <div style={styles.emptyText}>画像はありません。</div>
+              ) : (
+                <div style={styles.previewGrid}>
+                  {existingImages.map((img, index) => (
+                    <div key={img.id} style={styles.previewCard}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img.image_url} alt={`existing-${index}`} style={styles.preview} />
+                      <div style={styles.previewFooter}>
+                        <span style={styles.previewText}>
+                          {index === 0 ? "メイン画像" : `画像 ${index + 1}`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeExistingImage(img.id)}
+                          style={styles.removeButton}
+                        >
+                          外す
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <label style={styles.label}>
-              <span>画像アップロード</span>
+              <span>画像追加（複数可）</span>
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 style={styles.input}
-                onChange={(e) => {
-                  const file = e.target.files?.[0] ?? null;
-                  setImageFile(file);
-                  setPreviewUrl(file ? URL.createObjectURL(file) : imageUrl);
-                }}
+                onChange={handleNewFilesChange}
               />
             </label>
 
-            {previewUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl} alt="preview" style={styles.preview} />
+            {newImages.length > 0 ? (
+              <div style={styles.previewGrid}>
+                {newImages.map((item, index) => (
+                  <div key={`${item.file.name}-${index}`} style={styles.previewCard}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.previewUrl} alt={`new-${index}`} style={styles.preview} />
+                    <div style={styles.previewFooter}>
+                      <span style={styles.previewText}>追加画像 {index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeNewImage(index)}
+                        style={styles.removeButton}
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : null}
 
             <div style={styles.checkRow}>
@@ -369,12 +475,52 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     fontFamily: "inherit",
   },
+  block: {
+    display: "grid",
+    gap: "10px",
+  },
+  blockTitle: {
+    fontWeight: 700,
+  },
+  emptyText: {
+    color: "#666",
+  },
+  previewGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "14px",
+  },
+  previewCard: {
+    border: "1px solid #e5e7eb",
+    borderRadius: "12px",
+    overflow: "hidden",
+    background: "#fafafa",
+  },
   preview: {
     width: "100%",
-    maxHeight: "280px",
+    height: "160px",
     objectFit: "cover",
-    borderRadius: "12px",
-    border: "1px solid #e5e7eb",
+    display: "block",
+  },
+  previewFooter: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 12px",
+  },
+  previewText: {
+    fontSize: "13px",
+    fontWeight: 700,
+  },
+  removeButton: {
+    background: "#fff",
+    color: "#dc2626",
+    border: "1px solid #fecaca",
+    borderRadius: "8px",
+    padding: "6px 10px",
+    cursor: "pointer",
+    fontWeight: 700,
   },
   grid: {
     display: "grid",
