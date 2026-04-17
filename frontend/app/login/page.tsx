@@ -57,12 +57,17 @@ export default function LoginPage() {
 
   return (
     <main style={styles.main}>
+      <div style={styles.bgCircle1} />
+      <div style={styles.bgCircle2} />
+      <div style={styles.bgCircle3} />
+
       <div style={styles.card}>
+        <div style={styles.kicker}>{mode === "login" ? "LOGIN" : "SIGN UP"}</div>
         <h1 style={styles.title}>{mode === "login" ? "ログイン" : "新規登録"}</h1>
         <p style={styles.subtitle}>
           {mode === "login"
             ? "メールアドレスとパスワードでログインします。"
-            : "まずはアカウントを作成します。"}
+            : "表示名・メールアドレス・パスワードを入力してください。"}
         </p>
 
         <form onSubmit={handleSubmit} style={styles.form}>
@@ -107,10 +112,10 @@ export default function LoginPage() {
           {message ? <p style={styles.message}>{message}</p> : null}
         </form>
 
-        <div style={styles.switchRow}>
+        <div style={styles.switchWrap}>
           <button
             type="button"
-            style={styles.linkButton}
+            style={styles.switchButton}
             onClick={() => {
               setMode(mode === "login" ? "signup" : "login");
               setMessage(null);
@@ -129,24 +134,70 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: "100vh",
     display: "grid",
     placeItems: "center",
-    background: "#f5f7fb",
+    background: "linear-gradient(180deg, #f8f7ff 0%, #eef4ff 100%)",
     padding: "24px",
+    position: "relative",
+    overflow: "hidden",
+  },
+  bgCircle1: {
+    position: "absolute",
+    top: "-70px",
+    left: "-60px",
+    width: "220px",
+    height: "220px",
+    borderRadius: "999px",
+    background: "rgba(236, 72, 153, 0.12)",
+  },
+  bgCircle2: {
+    position: "absolute",
+    top: "120px",
+    right: "-70px",
+    width: "240px",
+    height: "240px",
+    borderRadius: "999px",
+    background: "rgba(59, 130, 246, 0.12)",
+  },
+  bgCircle3: {
+    position: "absolute",
+    bottom: "-80px",
+    left: "35%",
+    width: "260px",
+    height: "260px",
+    borderRadius: "999px",
+    background: "rgba(34, 197, 94, 0.12)",
   },
   card: {
     width: "100%",
-    maxWidth: "480px",
-    background: "#fff",
-    borderRadius: "18px",
-    padding: "24px",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+    maxWidth: "520px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fffafb 100%)",
+    borderRadius: "28px",
+    padding: "28px",
+    boxShadow: "0 16px 34px rgba(91, 98, 133, 0.12)",
+    border: "1px solid rgba(255,255,255,0.8)",
+    position: "relative",
+    zIndex: 1,
+  },
+  kicker: {
+    display: "inline-block",
+    padding: "6px 12px",
+    borderRadius: "999px",
+    background: "linear-gradient(90deg, #8b5cf6, #ec4899)",
+    color: "#fff",
+    fontSize: "12px",
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    marginBottom: "12px",
   },
   title: {
     margin: "0 0 8px",
-    fontSize: "30px",
+    fontSize: "34px",
+    color: "#1f2340",
   },
   subtitle: {
-    margin: "0 0 20px",
-    color: "#666",
+    margin: "0 0 22px",
+    color: "#5b6285",
+    fontWeight: 700,
+    lineHeight: 1.7,
   },
   form: {
     display: "grid",
@@ -155,40 +206,46 @@ const styles: Record<string, React.CSSProperties> = {
   label: {
     display: "grid",
     gap: "8px",
-    fontWeight: 600,
+    fontWeight: 700,
+    color: "#394067",
   },
   input: {
     width: "100%",
     padding: "12px 14px",
-    border: "1px solid #d1d5db",
-    borderRadius: "10px",
+    border: "1px solid #d8dcef",
+    borderRadius: "14px",
     fontSize: "16px",
     boxSizing: "border-box",
+    background: "#fff",
   },
   primaryButton: {
-    background: "#111827",
+    background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
     color: "#fff",
     border: "none",
-    borderRadius: "10px",
+    borderRadius: "14px",
     padding: "12px 16px",
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: "pointer",
+    boxShadow: "0 10px 22px rgba(99, 102, 241, 0.24)",
   },
   message: {
     margin: 0,
-    background: "#f3f4f6",
+    color: "#1f2340",
+    background: "#fff",
     padding: "12px 14px",
-    borderRadius: "10px",
+    borderRadius: "12px",
+    boxShadow: "0 8px 18px rgba(91, 98, 133, 0.08)",
   },
-  switchRow: {
-    marginTop: "16px",
+  switchWrap: {
+    marginTop: "18px",
   },
-  linkButton: {
-    background: "transparent",
+  switchButton: {
+    background: "linear-gradient(135deg, #eef6ff 0%, #dbeafe 100%)",
     border: "none",
-    padding: 0,
-    color: "#2563eb",
-    fontWeight: 700,
+    padding: "10px 14px",
+    borderRadius: "12px",
+    color: "#1d4ed8",
+    fontWeight: 800,
     cursor: "pointer",
   },
 };
