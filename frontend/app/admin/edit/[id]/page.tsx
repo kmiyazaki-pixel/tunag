@@ -18,7 +18,7 @@ export default function EditPostPage() {
   const { userInfo, loadingUser } = useAuthUser();
 
   const rawId = Array.isArray(params?.id) ? params.id[0] : params?.id;
-  const postId = Number(rawId);
+  const postId = rawId ? Number(rawId) : NaN;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,7 +39,9 @@ export default function EditPostPage() {
 
   useEffect(() => {
     async function loadPost() {
-      if (!rawId || Number.isNaN(postId)) {
+      if (!rawId) return;
+
+      if (Number.isNaN(postId)) {
         setMessage("不正な投稿IDです。");
         setLoading(false);
         return;
@@ -57,6 +59,7 @@ export default function EditPostPage() {
         return;
       }
 
+      setMessage(null);
       setTitle(data.title ?? "");
       setBody(data.body ?? "");
       setCategory(data.category ?? "お知らせ");
@@ -69,7 +72,6 @@ export default function EditPostPage() {
       setRequiredDeadline(
         data.required_deadline ? new Date(data.required_deadline).toISOString().slice(0, 16) : ""
       );
-
       setLoading(false);
     }
 
@@ -95,9 +97,9 @@ export default function EditPostPage() {
         upsert: false,
       });
 
-    if (uploadError) {
-      throw new Error(uploadError.message);
-    }
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
 
     const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
     return data.publicUrl;
