@@ -1,20 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { useAuthUser } from "@/hooks/use-auth-user";
 
 type Props = {
   postId: number;
   initialReactionCount: number;
   initialReadCount: number;
-};
-
-type AuthUserInfo = {
-  id: string;
-  name: string;
-  email: string | null;
 };
 
 export default function PostActions({
@@ -23,6 +18,7 @@ export default function PostActions({
   initialReadCount,
 }: Props) {
   const router = useRouter();
+  const { userInfo, loadingUser } = useAuthUser();
 
   const [reactionCount, setReactionCount] = useState(initialReactionCount ?? 0);
   const [readCount] = useState(initialReadCount ?? 0);
@@ -31,52 +27,6 @@ export default function PostActions({
   const [loadingRead, setLoadingRead] = useState(false);
   const [loadingComment, setLoadingComment] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [userInfo, setUserInfo] = useState<AuthUserInfo | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadUser() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      if (!session?.user) {
-        setUserInfo(null);
-        setLoadingUser(false);
-        return;
-      }
-
-      const user = session.user;
-      const displayName =
-        (user.user_metadata?.name as string | undefined)?.trim() ||
-        user.email?.split("@")[0] ||
-        "ユーザー";
-
-      setUserInfo({
-        id: user.id,
-        name: displayName,
-        email: user.email ?? null,
-      });
-      setLoadingUser(false);
-    }
-
-    loadUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      loadUser();
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
 
   const canSubmitComment = useMemo(() => {
     return !!userInfo && commentBody.trim() !== "";
@@ -188,6 +138,8 @@ export default function PostActions({
           <div style={styles.countValue}>{reactionCount}</div>
         </div>
       </div>
+
+      {loadingUser ? <div style={styles.infoBox}>ログイン状態を確認中...</div> : null}
 
       {!loadingUser && !userInfo ? (
         <div style={styles.loginBox}>
@@ -343,6 +295,13 @@ const styles: Record<string, React.CSSProperties> = {
   },
   currentUserBox: {
     background: "#fff",
+    color: "#111",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontWeight: 700,
+  },
+  infoBox: {
+    background: "#f3f4f6",
     color: "#111",
     padding: "12px 14px",
     borderRadius: "12px",
