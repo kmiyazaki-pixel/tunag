@@ -35,7 +35,6 @@ type Comment = {
   author: string;
   body: string;
   created_at: string | null;
-  author_profile_id?: string | null;
 };
 
 type ReadRow = {
@@ -84,7 +83,7 @@ export default async function PostDetailPage({ params }: PageProps) {
       supabase.from("post_summary").select("*").eq("id", postId).single(),
       supabase
         .from("post_comments")
-        .select("id,post_id,author,body,created_at,author_profile_id")
+        .select("id,post_id,author,body,created_at")
         .eq("post_id", postId)
         .is("deleted_at", null)
         .order("created_at", { ascending: true }),
@@ -136,7 +135,6 @@ export default async function PostDetailPage({ params }: PageProps) {
 
         <article style={styles.article}>
           {safePost.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img src={safePost.image_url} alt={safePost.title} style={styles.image} />
           ) : null}
 
@@ -159,20 +157,6 @@ export default async function PostDetailPage({ params }: PageProps) {
                 <span>必読期限: {formatDate(safePost.required_deadline)}</span>
               ) : null}
             </div>
-
-            {deadlineStatus === "expired" ? (
-              <div style={styles.alertExpired}>この必読投稿は期限切れです。</div>
-            ) : null}
-
-            {deadlineStatus === "active" ? (
-              <div style={styles.alertActive}>
-                この投稿は必読です。期限は {formatDate(safePost.required_deadline)} です。
-              </div>
-            ) : null}
-
-            {deadlineStatus === "required" ? (
-              <div style={styles.alertRequired}>この投稿は必読です。</div>
-            ) : null}
 
             <p style={styles.body}>{safePost.body}</p>
           </div>
@@ -213,15 +197,8 @@ export default async function PostDetailPage({ params }: PageProps) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  main: {
-    minHeight: "100vh",
-    background: "#f5f7fb",
-    padding: "32px 16px",
-  },
-  container: {
-    maxWidth: "960px",
-    margin: "0 auto",
-  },
+  main: { minHeight: "100vh", background: "#f5f7fb", padding: "32px 16px" },
+  container: { maxWidth: "960px", margin: "0 auto" },
   topRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -230,16 +207,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "12px",
     flexWrap: "wrap",
   },
-  topActions: {
-    display: "flex",
-    gap: "10px",
-    flexWrap: "wrap",
-  },
-  backLink: {
-    textDecoration: "none",
-    color: "#2563eb",
-    fontWeight: 700,
-  },
+  topActions: { display: "flex", gap: "10px", flexWrap: "wrap" },
+  backLink: { textDecoration: "none", color: "#2563eb", fontWeight: 700 },
   adminLink: {
     textDecoration: "none",
     color: "#111",
@@ -263,21 +232,9 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
     marginBottom: "24px",
   },
-  image: {
-    width: "100%",
-    height: "320px",
-    objectFit: "cover",
-    display: "block",
-  },
-  articleBody: {
-    padding: "24px",
-  },
-  badges: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap",
-    marginBottom: "16px",
-  },
+  image: { width: "100%", height: "320px", objectFit: "cover", display: "block" },
+  articleBody: { padding: "24px" },
+  badges: { display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" },
   category: {
     background: "#eef2ff",
     padding: "6px 10px",
@@ -317,10 +274,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "12px",
     fontWeight: 700,
   },
-  title: {
-    fontSize: "32px",
-    margin: "0 0 16px",
-  },
+  title: { fontSize: "32px", margin: "0 0 16px" },
   meta: {
     display: "flex",
     flexWrap: "wrap",
@@ -329,35 +283,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "14px",
     marginBottom: "20px",
   },
-  alertExpired: {
-    background: "#fee2e2",
-    color: "#991b1b",
-    padding: "12px 14px",
-    borderRadius: "12px",
-    fontWeight: 700,
-    marginBottom: "18px",
-  },
-  alertActive: {
-    background: "#fef3c7",
-    color: "#92400e",
-    padding: "12px 14px",
-    borderRadius: "12px",
-    fontWeight: 700,
-    marginBottom: "18px",
-  },
-  alertRequired: {
-    background: "#eef2ff",
-    color: "#1e3a8a",
-    padding: "12px 14px",
-    borderRadius: "12px",
-    fontWeight: 700,
-    marginBottom: "18px",
-  },
-  body: {
-    fontSize: "16px",
-    lineHeight: 1.9,
-    whiteSpace: "pre-wrap",
-  },
+  body: { fontSize: "16px", lineHeight: 1.9, whiteSpace: "pre-wrap" },
   section: {
     background: "#fff",
     borderRadius: "18px",
@@ -365,14 +291,8 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
     marginBottom: "20px",
   },
-  sectionTitle: {
-    margin: "0 0 16px",
-    fontSize: "22px",
-  },
-  readList: {
-    display: "grid",
-    gap: "10px",
-  },
+  sectionTitle: { margin: "0 0 16px", fontSize: "22px" },
+  readList: { display: "grid", gap: "10px" },
   readItem: {
     display: "flex",
     justifyContent: "space-between",
@@ -381,10 +301,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "12px",
     padding: "12px 14px",
   },
-  empty: {
-    color: "#666",
-    margin: 0,
-  },
+  empty: { color: "#666", margin: 0 },
   error: {
     color: "#b91c1c",
     background: "#fee2e2",
