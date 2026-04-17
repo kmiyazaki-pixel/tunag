@@ -144,17 +144,18 @@ export default function NewPostPage() {
       <div style={styles.bgCircle2} />
       <div style={styles.bgCircle3} />
 
-     <div style={styles.topRow}>
-  <Link href="/" style={styles.backLink}>
-    ← 一覧へ戻る
-  </Link>
+      <div style={styles.container}>
+        <div style={styles.topRow}>
+          <Link href="/" style={styles.backLink}>
+            ← 一覧へ戻る
+          </Link>
 
-  <div style={styles.topActions}>
-    <Link href="/admin/drafts" style={styles.draftsLink}>
-      下書き一覧
-    </Link>
-  </div>
-</div>
+          <div style={styles.topActions}>
+            <Link href="/admin/drafts" style={styles.draftsLink}>
+              下書き一覧
+            </Link>
+          </div>
+        </div>
 
         <div style={styles.card}>
           <div style={styles.kicker}>NEW POST</div>
@@ -322,11 +323,30 @@ const styles: Record<string, React.CSSProperties> = {
   },
   topRow: {
     marginBottom: "20px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+  topActions: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
   },
   backLink: {
     textDecoration: "none",
     color: "#4f46e5",
     fontWeight: 800,
+  },
+  draftsLink: {
+    textDecoration: "none",
+    color: "#111",
+    background: "linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%)",
+    padding: "10px 14px",
+    borderRadius: "12px",
+    fontWeight: 800,
+    boxShadow: "0 6px 18px rgba(251, 146, 60, 0.18)",
   },
   card: {
     background: "linear-gradient(180deg, #ffffff 0%, #fffafb 100%)",
@@ -455,19 +475,4 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "12px",
     boxShadow: "0 8px 18px rgba(91, 98, 133, 0.08)",
   },
-  topActions: {
-  display: "flex",
-  gap: "10px",
-  flexWrap: "wrap",
-},
-
-draftsLink: {
-  textDecoration: "none",
-  color: "#111",
-  background: "linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%)",
-  padding: "10px 14px",
-  borderRadius: "12px",
-  fontWeight: 800,
-  boxShadow: "0 6px 18px rgba(251, 146, 60, 0.18)",
-},
 };
