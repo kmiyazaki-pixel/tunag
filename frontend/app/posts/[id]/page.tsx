@@ -114,6 +114,8 @@ export default async function PostDetailPage({ params }: PageProps) {
 
   return (
     <main style={styles.main}>
+      <div style={styles.bgCircle1} />
+      <div style={styles.bgCircle2} />
       <div style={styles.container}>
         <div style={styles.topRow}>
           <Link href="/" style={styles.backLink}>
@@ -124,7 +126,7 @@ export default async function PostDetailPage({ params }: PageProps) {
             <Link href={`/admin/edit/${safePost.id}`} style={styles.editLink}>
               編集
             </Link>
-            <Link href="/admin/new" style={styles.adminLink}>
+            <Link href="/admin/new" style={styles.newPostLink}>
               新規投稿
             </Link>
           </div>
@@ -159,7 +161,7 @@ export default async function PostDetailPage({ params }: PageProps) {
           </div>
         </article>
 
-        <section style={styles.section}>
+        <section style={styles.sectionBlue}>
           <h2 style={styles.sectionTitle}>アクション</h2>
           <PostActions
             postId={safePost.id}
@@ -168,7 +170,7 @@ export default async function PostDetailPage({ params }: PageProps) {
           />
         </section>
 
-        <section style={styles.section}>
+        <section style={styles.sectionGreen}>
           <h2 style={styles.sectionTitle}>既読者</h2>
           {safeReads.length === 0 ? (
             <p style={styles.empty}>まだ既読者はいません。</p>
@@ -184,7 +186,7 @@ export default async function PostDetailPage({ params }: PageProps) {
           )}
         </section>
 
-        <section style={styles.section}>
+        <section style={styles.sectionPink}>
           <h2 style={styles.sectionTitle}>コメント</h2>
           <CommentList comments={safeComments} />
         </section>
@@ -194,8 +196,37 @@ export default async function PostDetailPage({ params }: PageProps) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  main: { minHeight: "100vh", background: "#f5f7fb", padding: "32px 16px" },
-  container: { maxWidth: "960px", margin: "0 auto" },
+  main: {
+    minHeight: "100vh",
+    background: "linear-gradient(180deg, #f8f7ff 0%, #eef4ff 100%)",
+    padding: "32px 16px",
+    position: "relative",
+    overflow: "hidden",
+  },
+  bgCircle1: {
+    position: "absolute",
+    top: "-60px",
+    right: "-70px",
+    width: "220px",
+    height: "220px",
+    borderRadius: "999px",
+    background: "rgba(236, 72, 153, 0.12)",
+  },
+  bgCircle2: {
+    position: "absolute",
+    bottom: "-80px",
+    left: "-40px",
+    width: "240px",
+    height: "240px",
+    borderRadius: "999px",
+    background: "rgba(59, 130, 246, 0.12)",
+  },
+  container: {
+    maxWidth: "960px",
+    margin: "0 auto",
+    position: "relative",
+    zIndex: 1,
+  },
   topRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -204,105 +235,162 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "12px",
     flexWrap: "wrap",
   },
-  topActions: { display: "flex", gap: "10px", flexWrap: "wrap" },
-  backLink: { textDecoration: "none", color: "#2563eb", fontWeight: 700 },
-  adminLink: {
+  topActions: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
+  backLink: {
+    textDecoration: "none",
+    color: "#4f46e5",
+    fontWeight: 800,
+  },
+  newPostLink: {
     textDecoration: "none",
     color: "#111",
-    background: "#fff",
+    background: "linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%)",
     padding: "10px 14px",
-    borderRadius: "10px",
-    fontWeight: 700,
+    borderRadius: "12px",
+    fontWeight: 800,
+    boxShadow: "0 6px 18px rgba(251, 146, 60, 0.18)",
   },
   editLink: {
     textDecoration: "none",
     color: "#fff",
-    background: "#111827",
+    background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
     padding: "10px 14px",
-    borderRadius: "10px",
-    fontWeight: 700,
+    borderRadius: "12px",
+    fontWeight: 800,
+    boxShadow: "0 8px 18px rgba(99, 102, 241, 0.26)",
   },
   article: {
-    background: "#fff",
-    borderRadius: "18px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fffafb 100%)",
+    borderRadius: "24px",
     overflow: "hidden",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+    boxShadow: "0 14px 30px rgba(91, 98, 133, 0.10)",
     marginBottom: "24px",
+    border: "1px solid rgba(255,255,255,0.7)",
   },
-  image: { width: "100%", height: "320px", objectFit: "cover", display: "block" },
-  articleBody: { padding: "24px" },
-  badges: { display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" },
+  image: {
+    width: "100%",
+    height: "320px",
+    objectFit: "cover",
+    display: "block",
+  },
+  articleBody: {
+    padding: "24px",
+  },
+  badges: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    marginBottom: "16px",
+  },
   category: {
-    background: "#eef2ff",
+    background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+    color: "#1d4ed8",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   required: {
-    background: "#fee2e2",
+    background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
     color: "#b91c1c",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   pinned: {
-    background: "#ecfccb",
-    color: "#3f6212",
+    background: "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)",
+    color: "#166534",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   expired: {
-    background: "#dc2626",
+    background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
     color: "#fff",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   deadlineActive: {
-    background: "#fef3c7",
+    background: "linear-gradient(135deg, #fde68a 0%, #fcd34d 100%)",
     color: "#92400e",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
-  title: { fontSize: "32px", margin: "0 0 16px" },
+  title: {
+    fontSize: "40px",
+    margin: "0 0 16px",
+    color: "#1f2340",
+  },
   meta: {
     display: "flex",
     flexWrap: "wrap",
     gap: "14px",
-    color: "#666",
+    color: "#5b6285",
     fontSize: "14px",
     marginBottom: "20px",
   },
-  body: { fontSize: "16px", lineHeight: 1.9, whiteSpace: "pre-wrap" },
-  section: {
-    background: "#fff",
-    borderRadius: "18px",
+  body: {
+    fontSize: "17px",
+    lineHeight: 1.95,
+    whiteSpace: "pre-wrap",
+    color: "#2d335a",
+  },
+  sectionBlue: {
+    background: "linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%)",
+    borderRadius: "24px",
     padding: "24px",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+    boxShadow: "0 14px 30px rgba(91, 98, 133, 0.08)",
     marginBottom: "20px",
   },
-  sectionTitle: { margin: "0 0 16px", fontSize: "22px" },
-  readList: { display: "grid", gap: "10px" },
+  sectionGreen: {
+    background: "linear-gradient(180deg, #f6fff9 0%, #ecfdf3 100%)",
+    borderRadius: "24px",
+    padding: "24px",
+    boxShadow: "0 14px 30px rgba(91, 98, 133, 0.08)",
+    marginBottom: "20px",
+  },
+  sectionPink: {
+    background: "linear-gradient(180deg, #fff8fb 0%, #fdf2f8 100%)",
+    borderRadius: "24px",
+    padding: "24px",
+    boxShadow: "0 14px 30px rgba(91, 98, 133, 0.08)",
+    marginBottom: "20px",
+  },
+  sectionTitle: {
+    margin: "0 0 16px",
+    fontSize: "24px",
+    color: "#1f2340",
+  },
+  readList: {
+    display: "grid",
+    gap: "10px",
+  },
   readItem: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
-    background: "#f9fafb",
-    borderRadius: "12px",
+    background: "#ffffffcc",
+    borderRadius: "14px",
     padding: "12px 14px",
   },
-  empty: { color: "#666", margin: 0 },
+  empty: {
+    color: "#666",
+    margin: 0,
+  },
   error: {
-    color: "#b91c1c",
+    color: "#991b1b",
     background: "#fee2e2",
     padding: "16px",
-    borderRadius: "12px",
+    borderRadius: "14px",
   },
 };
