@@ -112,6 +112,8 @@ export default function NewPostPage() {
   if (loadingUser) {
     return (
       <main style={styles.main}>
+        <div style={styles.bgCircle1} />
+        <div style={styles.bgCircle2} />
         <div style={styles.container}>
           <div style={styles.card}>ログイン状態を確認中...</div>
         </div>
@@ -122,6 +124,8 @@ export default function NewPostPage() {
   if (!userInfo) {
     return (
       <main style={styles.main}>
+        <div style={styles.bgCircle1} />
+        <div style={styles.bgCircle2} />
         <div style={styles.container}>
           <div style={styles.card}>
             <p style={styles.message}>投稿作成にはログインが必要です。</p>
@@ -136,6 +140,10 @@ export default function NewPostPage() {
 
   return (
     <main style={styles.main}>
+      <div style={styles.bgCircle1} />
+      <div style={styles.bgCircle2} />
+      <div style={styles.bgCircle3} />
+
       <div style={styles.container}>
         <div style={styles.topRow}>
           <Link href="/" style={styles.backLink}>
@@ -144,6 +152,7 @@ export default function NewPostPage() {
         </div>
 
         <div style={styles.card}>
+          <div style={styles.kicker}>NEW POST</div>
           <h1 style={styles.title}>新規投稿作成</h1>
           <p style={styles.subtitle}>ログイン中: {userInfo.name}</p>
 
@@ -216,7 +225,7 @@ export default function NewPostPage() {
             {previewUrl ? <img src={previewUrl} alt="preview" style={styles.preview} /> : null}
 
             <div style={styles.checkRow}>
-              <label style={styles.checkLabel}>
+              <label style={styles.checkLabelBlue}>
                 <input
                   type="checkbox"
                   checked={required}
@@ -225,7 +234,7 @@ export default function NewPostPage() {
                 <span>必読にする</span>
               </label>
 
-              <label style={styles.checkLabel}>
+              <label style={styles.checkLabelGreen}>
                 <input
                   type="checkbox"
                   checked={isPinned}
@@ -266,75 +275,179 @@ export default function NewPostPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  main: { minHeight: "100vh", background: "#f5f7fb", padding: "32px 16px" },
-  container: { maxWidth: "820px", margin: "0 auto" },
-  topRow: { marginBottom: "20px" },
-  backLink: { textDecoration: "none", color: "#2563eb", fontWeight: 700 },
-  card: {
-    background: "#fff",
-    borderRadius: "18px",
-    padding: "24px",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+  main: {
+    minHeight: "100vh",
+    background: "linear-gradient(180deg, #f8f7ff 0%, #eef4ff 100%)",
+    padding: "32px 16px",
+    position: "relative",
+    overflow: "hidden",
   },
-  title: { margin: "0 0 8px", fontSize: "30px" },
-  subtitle: { margin: "0 0 20px", color: "#666" },
-  form: { display: "grid", gap: "18px" },
-  label: { display: "grid", gap: "8px", fontWeight: 600 },
+  bgCircle1: {
+    position: "absolute",
+    top: "-60px",
+    left: "-40px",
+    width: "220px",
+    height: "220px",
+    borderRadius: "999px",
+    background: "rgba(236, 72, 153, 0.12)",
+  },
+  bgCircle2: {
+    position: "absolute",
+    top: "100px",
+    right: "-60px",
+    width: "220px",
+    height: "220px",
+    borderRadius: "999px",
+    background: "rgba(59, 130, 246, 0.12)",
+  },
+  bgCircle3: {
+    position: "absolute",
+    bottom: "-80px",
+    left: "35%",
+    width: "260px",
+    height: "260px",
+    borderRadius: "999px",
+    background: "rgba(34, 197, 94, 0.12)",
+  },
+  container: {
+    maxWidth: "860px",
+    margin: "0 auto",
+    position: "relative",
+    zIndex: 1,
+  },
+  topRow: {
+    marginBottom: "20px",
+  },
+  backLink: {
+    textDecoration: "none",
+    color: "#4f46e5",
+    fontWeight: 800,
+  },
+  card: {
+    background: "linear-gradient(180deg, #ffffff 0%, #fffafb 100%)",
+    borderRadius: "26px",
+    padding: "28px",
+    boxShadow: "0 16px 34px rgba(91, 98, 133, 0.10)",
+    border: "1px solid rgba(255,255,255,0.8)",
+  },
+  kicker: {
+    display: "inline-block",
+    padding: "6px 12px",
+    borderRadius: "999px",
+    background: "linear-gradient(90deg, #8b5cf6, #ec4899)",
+    color: "#fff",
+    fontSize: "12px",
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    marginBottom: "12px",
+  },
+  title: {
+    margin: "0 0 8px",
+    fontSize: "34px",
+    color: "#1f2340",
+  },
+  subtitle: {
+    margin: "0 0 22px",
+    color: "#5b6285",
+    fontWeight: 700,
+  },
+  form: {
+    display: "grid",
+    gap: "18px",
+  },
+  label: {
+    display: "grid",
+    gap: "8px",
+    fontWeight: 700,
+    color: "#394067",
+  },
   input: {
     width: "100%",
     padding: "12px 14px",
-    border: "1px solid #d1d5db",
-    borderRadius: "10px",
+    border: "1px solid #d8dcef",
+    borderRadius: "14px",
     fontSize: "16px",
     boxSizing: "border-box",
+    background: "#fff",
   },
   textarea: {
     width: "100%",
     padding: "12px 14px",
-    border: "1px solid #d1d5db",
-    borderRadius: "10px",
+    border: "1px solid #d8dcef",
+    borderRadius: "14px",
     fontSize: "16px",
     resize: "vertical",
     boxSizing: "border-box",
     fontFamily: "inherit",
+    background: "#fff",
   },
   preview: {
     width: "100%",
-    maxHeight: "280px",
+    maxHeight: "300px",
     objectFit: "cover",
-    borderRadius: "12px",
+    borderRadius: "16px",
     border: "1px solid #e5e7eb",
+    boxShadow: "0 10px 22px rgba(91, 98, 133, 0.08)",
   },
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
     gap: "16px",
   },
-  checkRow: { display: "flex", gap: "20px", flexWrap: "wrap" },
-  checkLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 600 },
-  noteBox: {
-    background: "#f3f4f6",
-    borderRadius: "10px",
-    padding: "12px 14px",
-    color: "#111",
+  checkRow: {
+    display: "flex",
+    gap: "14px",
+    flexWrap: "wrap",
   },
-  buttonRow: { display: "flex", justifyContent: "flex-end" },
+  checkLabelBlue: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontWeight: 800,
+    color: "#1d4ed8",
+    background: "linear-gradient(135deg, #eef6ff 0%, #dbeafe 100%)",
+    padding: "10px 14px",
+    borderRadius: "12px",
+  },
+  checkLabelGreen: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontWeight: 800,
+    color: "#166534",
+    background: "linear-gradient(135deg, #ecfdf3 0%, #d1fae5 100%)",
+    padding: "10px 14px",
+    borderRadius: "12px",
+  },
+  noteBox: {
+    background: "linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%)",
+    borderRadius: "14px",
+    padding: "12px 14px",
+    color: "#9a3412",
+    fontWeight: 800,
+  },
+  buttonRow: {
+    display: "flex",
+    justifyContent: "flex-end",
+  },
   submitButton: {
     display: "inline-block",
-    background: "#111827",
+    background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
     color: "#fff",
     textDecoration: "none",
     border: "none",
-    borderRadius: "10px",
-    padding: "12px 18px",
-    fontWeight: 700,
+    borderRadius: "14px",
+    padding: "12px 20px",
+    fontWeight: 800,
     cursor: "pointer",
+    boxShadow: "0 10px 22px rgba(99, 102, 241, 0.24)",
   },
   message: {
     margin: 0,
-    color: "#111",
-    background: "#f3f4f6",
+    color: "#1f2340",
+    background: "#fff",
     padding: "12px 14px",
-    borderRadius: "10px",
+    borderRadius: "12px",
+    boxShadow: "0 8px 18px rgba(91, 98, 133, 0.08)",
   },
 };
