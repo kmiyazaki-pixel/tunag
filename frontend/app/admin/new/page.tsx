@@ -6,7 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuthUser } from "@/hooks/use-auth-user";
 
-type PostStatus = "draft" | "published" | "archived";
+type PostStatus = "draft" | "published";
 
 function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]/g, "_");
@@ -209,7 +209,6 @@ export default function NewPostPage() {
                 >
                   <option value="draft">下書き</option>
                   <option value="published">公開</option>
-                  <option value="archived">アーカイブ</option>
                 </select>
               </label>
             </div>
