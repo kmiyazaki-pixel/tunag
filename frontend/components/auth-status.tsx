@@ -16,21 +16,19 @@ export default function AuthStatus() {
     let mounted = true;
 
     async function load() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getUser();
 
       if (!mounted) return;
 
-      if (!session?.user) {
+      if (error || !data.user) {
         setUserInfo(null);
         setLoading(false);
         return;
       }
 
       setUserInfo({
-        email: session.user.email ?? null,
-        name: (session.user.user_metadata?.name as string | undefined) ?? null,
+        email: data.user.email ?? null,
+        name: (data.user.user_metadata?.name as string | undefined) ?? null,
       });
       setLoading(false);
     }
@@ -55,7 +53,7 @@ export default function AuthStatus() {
   }
 
   if (loading) {
-    return <div style={styles.box}>読み込み中...</div>;
+    return <div style={styles.loading}>読み込み中...</div>;
   }
 
   if (!userInfo) {
@@ -64,8 +62,11 @@ export default function AuthStatus() {
 
   return (
     <div style={styles.row}>
-      <div style={styles.box}>{userInfo.name || userInfo.email || "ログイン中"}</div>
-      <button type="button" onClick={handleLogout} style={styles.secondaryButton}>
+      <div style={styles.userChip}>
+        <span style={styles.dot} />
+        {userInfo.name || userInfo.email || "ログイン中"}
+      </div>
+      <button type="button" onClick={handleLogout} style={styles.logoutButton}>
         ログアウト
       </button>
     </div>
@@ -79,19 +80,39 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     flexWrap: "wrap",
   },
-  box: {
-    background: "#fff",
+  userChip: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    background: "linear-gradient(135deg, #ecfdf3 0%, #d1fae5 100%)",
+    color: "#166534",
     padding: "10px 14px",
-    borderRadius: "10px",
-    fontWeight: 700,
+    borderRadius: "999px",
+    fontWeight: 800,
+    boxShadow: "0 8px 18px rgba(16, 185, 129, 0.14)",
   },
-  secondaryButton: {
-    background: "#f3f4f6",
-    color: "#111",
+  dot: {
+    width: "10px",
+    height: "10px",
+    borderRadius: "999px",
+    background: "#10b981",
+    display: "inline-block",
+  },
+  logoutButton: {
+    background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+    color: "#fff",
     border: "none",
-    borderRadius: "10px",
+    borderRadius: "12px",
     padding: "10px 14px",
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: "pointer",
+    boxShadow: "0 8px 18px rgba(99, 102, 241, 0.22)",
+  },
+  loading: {
+    background: "#fff",
+    color: "#394067",
+    padding: "10px 14px",
+    borderRadius: "12px",
+    fontWeight: 700,
   },
 };
