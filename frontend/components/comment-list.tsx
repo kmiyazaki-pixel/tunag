@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { useAuthUser } from "@/hooks/use-auth-user";
 
 type Comment = {
   id: number;
@@ -11,12 +11,6 @@ type Comment = {
   author: string;
   body: string;
   created_at: string | null;
-  author_profile_id?: string | null;
-};
-
-type MyProfile = {
-  id: string;
-  role: "member" | "editor" | "admin";
 };
 
 type Props = {
@@ -32,59 +26,16 @@ function formatDate(value: string | null) {
 
 export default function CommentList({ comments }: Props) {
   const router = useRouter();
+  const { userInfo, loadingUser } = useAuthUser();
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editBody, setEditBody] = useState("");
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [profile, setProfile] = useState<MyProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadProfile() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      if (!session?.user) {
-        setProfile(null);
-        setLoadingProfile(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("id,role")
-        .eq("auth_user_id", session.user.id)
-        .maybeSingle();
-
-      if (!mounted) return;
-
-      setProfile((data as MyProfile | null) ?? null);
-      setLoadingProfile(false);
-    }
-
-    loadProfile();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      loadProfile();
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
 
   function canManage(comment: Comment) {
-    if (!profile) return false;
-    if (profile.role === "admin" || profile.role === "editor") return true;
-    return !!comment.author_profile_id && comment.author_profile_id === profile.id;
+    if (!userInfo) return false;
+    return comment.author === userInfo.name;
   }
 
   function startEdit(comment: Comment) {
@@ -99,6 +50,11 @@ export default function CommentList({ comments }: Props) {
   }
 
   async function saveEdit(commentId: number) {
+    if (!userInfo) {
+      setMessage("ログインしてください。");
+      return;
+    }
+
     if (!editBody.trim()) {
       setMessage("コメント本文を入力してください。");
       return;
@@ -129,6 +85,11 @@ export default function CommentList({ comments }: Props) {
   }
 
   async function deleteComment(commentId: number) {
+    if (!userInfo) {
+      setMessage("ログインしてください。");
+      return;
+    }
+
     const ok = window.confirm("このコメントを削除します。よろしいですか？");
     if (!ok) return;
 
@@ -160,14 +121,7 @@ export default function CommentList({ comments }: Props) {
 
   return (
     <div style={styles.wrapper}>
-      {!loadingProfile && !profile ? (
-        <div style={styles.loginBox}>
-          コメント編集・削除にはログインが必要です。{" "}
-          <Link href="/login" style={styles.link}>
-            ログインする
-          </Link>
-        </div>
-      ) : null}
+      {loadingUser ? <div style={styles.infoBox}>ログイン状態を確認中...</div> : null}
 
       {comments.map((comment) => {
         const isEditing = editingId === comment.id;
@@ -190,10 +144,20 @@ export default function CommentList({ comments }: Props) {
                   rows={4}
                 />
                 <div style={styles.buttonRow}>
-                  <button type="button" style={styles.secondaryButton} onClick={cancelEdit} disabled={isLoading}>
+                  <button
+                    type="button"
+                    style={styles.secondaryButton}
+                    onClick={cancelEdit}
+                    disabled={isLoading}
+                  >
                     キャンセル
                   </button>
-                  <button type="button" style={styles.primaryButton} onClick={() => saveEdit(comment.id)} disabled={isLoading}>
+                  <button
+                    type="button"
+                    style={styles.primaryButton}
+                    onClick={() => saveEdit(comment.id)}
+                    disabled={isLoading}
+                  >
                     {isLoading ? "保存中..." : "保存"}
                   </button>
                 </div>
@@ -203,10 +167,20 @@ export default function CommentList({ comments }: Props) {
                 <p style={styles.commentBody}>{comment.body}</p>
                 {manageable ? (
                   <div style={styles.actionRow}>
-                    <button type="button" style={styles.secondaryButton} onClick={() => startEdit(comment)} disabled={isLoading}>
+                    <button
+                      type="button"
+                      style={styles.secondaryButton}
+                      onClick={() => startEdit(comment)}
+                      disabled={isLoading}
+                    >
                       編集
                     </button>
-                    <button type="button" style={styles.deleteButton} onClick={() => deleteComment(comment.id)} disabled={isLoading}>
+                    <button
+                      type="button"
+                      style={styles.deleteButton}
+                      onClick={() => deleteComment(comment.id)}
+                      disabled={isLoading}
+                    >
                       {isLoading ? "削除中..." : "削除"}
                     </button>
                   </div>
@@ -310,15 +284,11 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#666",
     margin: 0,
   },
-  loginBox: {
-    background: "#eef2ff",
-    color: "#1e3a8a",
+  infoBox: {
+    background: "#f3f4f6",
+    color: "#111",
     padding: "12px 14px",
     borderRadius: "12px",
     fontWeight: 700,
-  },
-  link: {
-    color: "#2563eb",
-    textDecoration: "none",
   },
 };
