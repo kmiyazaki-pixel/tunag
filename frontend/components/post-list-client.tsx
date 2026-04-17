@@ -125,13 +125,20 @@ export default function PostListClient({ posts }: Props) {
         {filteredPosts.length === 0 ? (
           <div style={styles.emptyBox}>条件に一致する投稿がありません。</div>
         ) : (
-          filteredPosts.map((post) => {
+          filteredPosts.map((post, index) => {
             const deadlineStatus = getDeadlineStatus(post.required, post.required_deadline);
+            const cardStyle =
+              index % 4 === 0
+                ? styles.postCardPink
+                : index % 4 === 1
+                ? styles.postCardBlue
+                : index % 4 === 2
+                ? styles.postCardGreen
+                : styles.postCardYellow;
 
             return (
-              <article key={post.id} style={styles.postCard}>
+              <article key={post.id} style={{ ...styles.postCard, ...cardStyle }}>
                 {post.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={post.image_url} alt={post.title} style={styles.image} />
                 ) : null}
 
@@ -184,10 +191,10 @@ export default function PostListClient({ posts }: Props) {
 
 const styles: Record<string, React.CSSProperties> = {
   filterSection: {
-    background: "#fff",
-    borderRadius: "16px",
+    background: "linear-gradient(180deg, #ffffff 0%, #faf5ff 100%)",
+    borderRadius: "22px",
     padding: "20px",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+    boxShadow: "0 10px 26px rgba(91, 98, 133, 0.10)",
     marginBottom: "24px",
     display: "grid",
     gap: "14px",
@@ -200,35 +207,51 @@ const styles: Record<string, React.CSSProperties> = {
   label: {
     display: "grid",
     gap: "8px",
-    fontWeight: 600,
+    fontWeight: 700,
+    color: "#394067",
   },
   input: {
     width: "100%",
     padding: "12px 14px",
-    border: "1px solid #d1d5db",
-    borderRadius: "10px",
+    border: "1px solid #d8dcef",
+    borderRadius: "12px",
     fontSize: "16px",
     boxSizing: "border-box",
+    background: "#fff",
   },
   checkLabel: {
     display: "flex",
     alignItems: "center",
     gap: "8px",
-    fontWeight: 600,
+    fontWeight: 700,
+    color: "#394067",
   },
   resultText: {
-    color: "#555",
+    color: "#5b6285",
     fontSize: "14px",
+    fontWeight: 700,
   },
   listSection: {
     display: "grid",
     gap: "20px",
   },
   postCard: {
-    background: "#fff",
-    borderRadius: "18px",
+    borderRadius: "24px",
     overflow: "hidden",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+    boxShadow: "0 12px 28px rgba(91, 98, 133, 0.10)",
+    border: "1px solid rgba(255,255,255,0.75)",
+  },
+  postCardPink: {
+    background: "linear-gradient(180deg, #fff8fb 0%, #fff1f6 100%)",
+  },
+  postCardBlue: {
+    background: "linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%)",
+  },
+  postCardGreen: {
+    background: "linear-gradient(180deg, #f7fff9 0%, #ecfdf3 100%)",
+  },
+  postCardYellow: {
+    background: "linear-gradient(180deg, #fffdf5 0%, #fef3c7 100%)",
   },
   image: {
     width: "100%",
@@ -246,64 +269,67 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "12px",
   },
   category: {
-    background: "#eef2ff",
+    background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+    color: "#1d4ed8",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   required: {
-    background: "#fee2e2",
+    background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
     color: "#b91c1c",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   pinned: {
-    background: "#ecfccb",
-    color: "#3f6212",
+    background: "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)",
+    color: "#166534",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   expired: {
-    background: "#dc2626",
+    background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
     color: "#fff",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   deadlineActive: {
-    background: "#fef3c7",
+    background: "linear-gradient(135deg, #fde68a 0%, #fcd34d 100%)",
     color: "#92400e",
     padding: "6px 10px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   postTitle: {
     margin: "0 0 12px",
-    fontSize: "24px",
+    fontSize: "26px",
   },
   postTitleLink: {
-    color: "#111",
+    color: "#1f2340",
     textDecoration: "none",
+    fontWeight: 800,
   },
   postText: {
-    color: "#444",
-    lineHeight: 1.7,
+    color: "#3e466f",
+    lineHeight: 1.8,
     marginBottom: "16px",
   },
   infoGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
     gap: "8px",
-    color: "#666",
+    color: "#5b6285",
     fontSize: "14px",
     marginBottom: "16px",
+    fontWeight: 600,
   },
   linkRow: {
     display: "flex",
@@ -311,18 +337,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
   secondaryButton: {
     display: "inline-block",
-    background: "#f3f4f6",
-    color: "#111",
+    background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+    color: "#fff",
     textDecoration: "none",
     padding: "10px 14px",
-    borderRadius: "10px",
-    fontWeight: 700,
+    borderRadius: "12px",
+    fontWeight: 800,
+    boxShadow: "0 8px 18px rgba(99, 102, 241, 0.22)",
   },
   emptyBox: {
-    background: "#fff",
-    borderRadius: "16px",
+    background: "linear-gradient(180deg, #ffffff 0%, #faf5ff 100%)",
+    borderRadius: "20px",
     padding: "32px",
     textAlign: "center",
     color: "#666",
+    boxShadow: "0 10px 24px rgba(91, 98, 133, 0.08)",
   },
 };
