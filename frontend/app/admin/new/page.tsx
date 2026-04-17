@@ -100,7 +100,7 @@ export default function NewPostPage() {
         return;
       }
 
-      router.push("/");
+      router.push("/admin/drafts");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "保存に失敗しました。";
       setMessage(`保存に失敗しました: ${errorMessage}`);
