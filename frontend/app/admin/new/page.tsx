@@ -1,17 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { useAuthUser } from "@/hooks/use-auth-user";
 
 type PostStatus = "draft" | "published" | "archived";
-
-type AuthUserInfo = {
-  id: string;
-  name: string;
-  email: string | null;
-};
 
 function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]/g, "_");
@@ -19,9 +14,7 @@ function sanitizeFileName(name: string) {
 
 export default function NewPostPage() {
   const router = useRouter();
-
-  const [userInfo, setUserInfo] = useState<AuthUserInfo | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const { userInfo, loadingUser } = useAuthUser();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -34,50 +27,6 @@ export default function NewPostPage() {
   const [previewUrl, setPreviewUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadUser() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      if (!session?.user) {
-        setUserInfo(null);
-        setLoadingUser(false);
-        return;
-      }
-
-      const user = session.user;
-      const displayName =
-        (user.user_metadata?.name as string | undefined)?.trim() ||
-        user.email?.split("@")[0] ||
-        "ユーザー";
-
-      setUserInfo({
-        id: user.id,
-        name: displayName,
-        email: user.email ?? null,
-      });
-      setLoadingUser(false);
-    }
-
-    loadUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      loadUser();
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
 
   const isValid = useMemo(() => {
     return title.trim() !== "" && body.trim() !== "";
@@ -164,7 +113,7 @@ export default function NewPostPage() {
     return (
       <main style={styles.main}>
         <div style={styles.container}>
-          <div style={styles.card}>読み込み中...</div>
+          <div style={styles.card}>ログイン状態を確認中...</div>
         </div>
       </main>
     );
@@ -175,7 +124,7 @@ export default function NewPostPage() {
       <main style={styles.main}>
         <div style={styles.container}>
           <div style={styles.card}>
-            <p style={styles.message}>新規投稿にはログインが必要です。</p>
+            <p style={styles.message}>投稿作成にはログインが必要です。</p>
             <Link href="/login" style={styles.submitButton}>
               ログインする
             </Link>
@@ -264,9 +213,7 @@ export default function NewPostPage() {
               />
             </label>
 
-            {previewUrl ? (
-              <img src={previewUrl} alt="preview" style={styles.preview} />
-            ) : null}
+            {previewUrl ? <img src={previewUrl} alt="preview" style={styles.preview} /> : null}
 
             <div style={styles.checkRow}>
               <label style={styles.checkLabel}>
