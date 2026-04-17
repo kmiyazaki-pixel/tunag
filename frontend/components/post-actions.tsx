@@ -11,10 +11,10 @@ type Props = {
   initialReadCount: number;
 };
 
-type MyProfile = {
+type AuthUserInfo = {
   id: string;
   name: string;
-  role: "member" | "editor" | "admin";
+  email: string | null;
 };
 
 export default function PostActions({
@@ -31,13 +31,13 @@ export default function PostActions({
   const [loadingRead, setLoadingRead] = useState(false);
   const [loadingComment, setLoadingComment] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [profile, setProfile] = useState<MyProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [userInfo, setUserInfo] = useState<AuthUserInfo | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadProfile() {
+    async function loadUser() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -45,29 +45,31 @@ export default function PostActions({
       if (!mounted) return;
 
       if (!session?.user) {
-        setProfile(null);
-        setLoadingProfile(false);
+        setUserInfo(null);
+        setLoadingUser(false);
         return;
       }
 
-      const { data } = await supabase
-        .from("profiles")
-        .select("id,name,role")
-        .eq("auth_user_id", session.user.id)
-        .maybeSingle();
+      const user = session.user;
+      const displayName =
+        (user.user_metadata?.name as string | undefined)?.trim() ||
+        user.email?.split("@")[0] ||
+        "ユーザー";
 
-      if (!mounted) return;
-
-      setProfile((data as MyProfile | null) ?? null);
-      setLoadingProfile(false);
+      setUserInfo({
+        id: user.id,
+        name: displayName,
+        email: user.email ?? null,
+      });
+      setLoadingUser(false);
     }
 
-    loadProfile();
+    loadUser();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
-      loadProfile();
+      loadUser();
     });
 
     return () => {
@@ -77,11 +79,11 @@ export default function PostActions({
   }, []);
 
   const canSubmitComment = useMemo(() => {
-    return !!profile && commentBody.trim() !== "";
-  }, [profile, commentBody]);
+    return !!userInfo && commentBody.trim() !== "";
+  }, [userInfo, commentBody]);
 
   async function handleLike() {
-    if (!profile) {
+    if (!userInfo) {
       setMessage("ログインしてください。");
       return;
     }
@@ -94,7 +96,6 @@ export default function PostActions({
       {
         post_id: postId,
         reaction_type: "like",
-        user_profile_id: profile.id,
       },
     ]);
 
@@ -111,7 +112,7 @@ export default function PostActions({
   }
 
   async function handleRead() {
-    if (!profile) {
+    if (!userInfo) {
       setMessage("ログインしてください。");
       return;
     }
@@ -124,8 +125,7 @@ export default function PostActions({
       [
         {
           post_id: postId,
-          reader_name: profile.name,
-          reader_profile_id: profile.id,
+          reader_name: userInfo.name,
         },
       ],
       {
@@ -146,7 +146,8 @@ export default function PostActions({
 
   async function handleCommentSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!profile) {
+
+    if (!userInfo) {
       setMessage("ログインしてください。");
       return;
     }
@@ -158,8 +159,7 @@ export default function PostActions({
     const { error } = await supabase.from("post_comments").insert([
       {
         post_id: postId,
-        author: profile.name,
-        author_profile_id: profile.id,
+        author: userInfo.name,
         body: commentBody.trim(),
       },
     ]);
@@ -189,7 +189,7 @@ export default function PostActions({
         </div>
       </div>
 
-      {!loadingProfile && !profile ? (
+      {!loadingUser && !userInfo ? (
         <div style={styles.loginBox}>
           アクションにはログインが必要です。{" "}
           <Link href="/login" style={styles.link}>
@@ -198,12 +198,26 @@ export default function PostActions({
         </div>
       ) : null}
 
+      {!loadingUser && userInfo ? (
+        <div style={styles.currentUserBox}>ログイン中: {userInfo.name}</div>
+      ) : null}
+
       <div style={styles.actionRow}>
-        <button type="button" onClick={handleRead} disabled={loadingRead || !profile} style={styles.secondaryButton}>
+        <button
+          type="button"
+          onClick={handleRead}
+          disabled={loadingRead || !userInfo}
+          style={styles.secondaryButton}
+        >
           {loadingRead ? "登録中..." : "確認しました"}
         </button>
 
-        <button type="button" onClick={handleLike} disabled={loadingLike || !profile} style={styles.primaryButton}>
+        <button
+          type="button"
+          onClick={handleLike}
+          disabled={loadingLike || !userInfo}
+          style={styles.primaryButton}
+        >
           {loadingLike ? "送信中..." : "いいね"}
         </button>
       </div>
@@ -217,14 +231,18 @@ export default function PostActions({
             style={styles.textarea}
             value={commentBody}
             onChange={(e) => setCommentBody(e.target.value)}
-            placeholder={profile ? "コメントを入力してください" : "ログインするとコメントできます"}
+            placeholder={userInfo ? "コメントを入力してください" : "ログインするとコメントできます"}
             rows={5}
-            disabled={!profile}
+            disabled={!userInfo}
           />
         </label>
 
         <div style={styles.submitRow}>
-          <button type="submit" disabled={!canSubmitComment || loadingComment} style={styles.primaryButton}>
+          <button
+            type="submit"
+            disabled={!canSubmitComment || loadingComment}
+            style={styles.primaryButton}
+          >
             {loadingComment ? "投稿中..." : "コメントを投稿"}
           </button>
         </div>
@@ -322,6 +340,13 @@ const styles: Record<string, React.CSSProperties> = {
   loginBox: {
     background: "#eef2ff",
     color: "#1e3a8a",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontWeight: 700,
+  },
+  currentUserBox: {
+    background: "#fff",
+    color: "#111",
     padding: "12px 14px",
     borderRadius: "12px",
     fontWeight: 700,
