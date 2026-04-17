@@ -5,22 +5,23 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
+type PostStatus = "draft" | "published" | "archived";
+
+type AuthUserInfo = {
+  id: string;
+  name: string;
+  email: string | null;
+};
+
 function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]/g, "_");
 }
 
-type PostStatus = "draft" | "published" | "archived";
-type MyProfile = {
-  id: string;
-  name: string;
-  role: "member" | "editor" | "admin";
-};
-
 export default function NewPostPage() {
   const router = useRouter();
 
-  const [profile, setProfile] = useState<MyProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [userInfo, setUserInfo] = useState<AuthUserInfo | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -37,7 +38,7 @@ export default function NewPostPage() {
   useEffect(() => {
     let mounted = true;
 
-    async function loadProfile() {
+    async function loadUser() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -45,29 +46,31 @@ export default function NewPostPage() {
       if (!mounted) return;
 
       if (!session?.user) {
-        setProfile(null);
-        setLoadingProfile(false);
+        setUserInfo(null);
+        setLoadingUser(false);
         return;
       }
 
-      const { data } = await supabase
-        .from("profiles")
-        .select("id,name,role")
-        .eq("auth_user_id", session.user.id)
-        .maybeSingle();
+      const user = session.user;
+      const displayName =
+        (user.user_metadata?.name as string | undefined)?.trim() ||
+        user.email?.split("@")[0] ||
+        "ユーザー";
 
-      if (!mounted) return;
-
-      setProfile((data as MyProfile | null) ?? null);
-      setLoadingProfile(false);
+      setUserInfo({
+        id: user.id,
+        name: displayName,
+        email: user.email ?? null,
+      });
+      setLoadingUser(false);
     }
 
-    loadProfile();
+    loadUser();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
-      loadProfile();
+      loadUser();
     });
 
     return () => {
@@ -75,8 +78,6 @@ export default function NewPostPage() {
       subscription.unsubscribe();
     };
   }, []);
-
-  const canPost = profile?.role === "admin" || profile?.role === "editor";
 
   const isValid = useMemo(() => {
     return title.trim() !== "" && body.trim() !== "";
@@ -108,7 +109,11 @@ export default function NewPostPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!isValid || saving || !profile || !canPost) return;
+    if (!userInfo) {
+      setMessage("ログインしてください。");
+      return;
+    }
+    if (!isValid || saving) return;
 
     setSaving(true);
     setMessage(null);
@@ -121,8 +126,7 @@ export default function NewPostPage() {
         body: body.trim(),
         category: category.trim() || "お知らせ",
         required,
-        author: profile.name,
-        author_profile_id: profile.id,
+        author: userInfo.name,
         image_url: uploadedImageUrl || null,
         status,
         is_pinned: isPinned,
@@ -140,19 +144,14 @@ export default function NewPostPage() {
         throw new Error(error.message);
       }
 
-      if (data?.id) {
-        router.refresh();
+      router.refresh();
 
-        if (data.status === "published") {
-          router.push(`/posts/${data.id}`);
-          return;
-        }
-
-        router.push("/admin");
+      if (data?.id && data.status === "published") {
+        router.push(`/posts/${data.id}`);
         return;
       }
 
-      router.push("/admin");
+      router.push("/");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "保存に失敗しました。";
       setMessage(`保存に失敗しました: ${errorMessage}`);
@@ -161,29 +160,25 @@ export default function NewPostPage() {
     }
   }
 
-  if (loadingProfile) {
-    return <main style={styles.main}><div style={styles.container}><div style={styles.card}>読み込み中...</div></div></main>;
-  }
-
-  if (!profile) {
+  if (loadingUser) {
     return (
       <main style={styles.main}>
         <div style={styles.container}>
-          <div style={styles.card}>
-            <p>投稿作成にはログインが必要です。</p>
-            <Link href="/login" style={styles.submitButton}>ログインする</Link>
-          </div>
+          <div style={styles.card}>読み込み中...</div>
         </div>
       </main>
     );
   }
 
-  if (!canPost) {
+  if (!userInfo) {
     return (
       <main style={styles.main}>
         <div style={styles.container}>
           <div style={styles.card}>
-            <p>このアカウントには投稿権限がありません。</p>
+            <p style={styles.message}>新規投稿にはログインが必要です。</p>
+            <Link href="/login" style={styles.submitButton}>
+              ログインする
+            </Link>
           </div>
         </div>
       </main>
@@ -194,30 +189,45 @@ export default function NewPostPage() {
     <main style={styles.main}>
       <div style={styles.container}>
         <div style={styles.topRow}>
-          <Link href="/admin" style={styles.backLink}>
-            ← 投稿管理へ戻る
+          <Link href="/" style={styles.backLink}>
+            ← 一覧へ戻る
           </Link>
         </div>
 
         <div style={styles.card}>
           <h1 style={styles.title}>新規投稿作成</h1>
-          <p style={styles.subtitle}>ログイン中: {profile.name} / {profile.role}</p>
+          <p style={styles.subtitle}>ログイン中: {userInfo.name}</p>
 
           <form onSubmit={handleSubmit} style={styles.form}>
             <label style={styles.label}>
               <span>タイトル</span>
-              <input style={styles.input} value={title} onChange={(e) => setTitle(e.target.value)} />
+              <input
+                style={styles.input}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="タイトルを入力"
+              />
             </label>
 
             <label style={styles.label}>
               <span>本文</span>
-              <textarea style={styles.textarea} value={body} onChange={(e) => setBody(e.target.value)} rows={10} />
+              <textarea
+                style={styles.textarea}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="本文を入力"
+                rows={10}
+              />
             </label>
 
             <div style={styles.grid}>
               <label style={styles.label}>
                 <span>カテゴリ</span>
-                <select style={styles.input} value={category} onChange={(e) => setCategory(e.target.value)}>
+                <select
+                  style={styles.input}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
                   <option value="お知らせ">お知らせ</option>
                   <option value="重要">重要</option>
                   <option value="イベント">イベント</option>
@@ -228,7 +238,11 @@ export default function NewPostPage() {
 
               <label style={styles.label}>
                 <span>公開状態</span>
-                <select style={styles.input} value={status} onChange={(e) => setStatus(e.target.value as PostStatus)}>
+                <select
+                  style={styles.input}
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as PostStatus)}
+                >
                   <option value="draft">下書き</option>
                   <option value="published">公開</option>
                   <option value="archived">アーカイブ</option>
@@ -250,16 +264,26 @@ export default function NewPostPage() {
               />
             </label>
 
-            {previewUrl ? <img src={previewUrl} alt="preview" style={styles.preview} /> : null}
+            {previewUrl ? (
+              <img src={previewUrl} alt="preview" style={styles.preview} />
+            ) : null}
 
             <div style={styles.checkRow}>
               <label style={styles.checkLabel}>
-                <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={required}
+                  onChange={(e) => setRequired(e.target.checked)}
+                />
                 <span>必読にする</span>
               </label>
 
               <label style={styles.checkLabel}>
-                <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={isPinned}
+                  onChange={(e) => setIsPinned(e.target.checked)}
+                />
                 <span>固定表示にする</span>
               </label>
             </div>
@@ -277,8 +301,7 @@ export default function NewPostPage() {
             ) : null}
 
             <div style={styles.noteBox}>
-              現在の状態:{" "}
-              <strong>{status === "draft" ? "下書き" : status === "published" ? "公開" : "アーカイブ"}</strong>
+              投稿者: <strong>{userInfo.name}</strong>
             </div>
 
             <div style={styles.buttonRow}>
@@ -300,19 +323,71 @@ const styles: Record<string, React.CSSProperties> = {
   container: { maxWidth: "820px", margin: "0 auto" },
   topRow: { marginBottom: "20px" },
   backLink: { textDecoration: "none", color: "#2563eb", fontWeight: 700 },
-  card: { background: "#fff", borderRadius: "18px", padding: "24px", boxShadow: "0 4px 16px rgba(0,0,0,0.06)" },
+  card: {
+    background: "#fff",
+    borderRadius: "18px",
+    padding: "24px",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+  },
   title: { margin: "0 0 8px", fontSize: "30px" },
   subtitle: { margin: "0 0 20px", color: "#666" },
   form: { display: "grid", gap: "18px" },
   label: { display: "grid", gap: "8px", fontWeight: 600 },
-  input: { width: "100%", padding: "12px 14px", border: "1px solid #d1d5db", borderRadius: "10px", fontSize: "16px", boxSizing: "border-box" },
-  textarea: { width: "100%", padding: "12px 14px", border: "1px solid #d1d5db", borderRadius: "10px", fontSize: "16px", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" },
-  preview: { width: "100%", maxHeight: "280px", objectFit: "cover", borderRadius: "12px", border: "1px solid #e5e7eb" },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" },
+  input: {
+    width: "100%",
+    padding: "12px 14px",
+    border: "1px solid #d1d5db",
+    borderRadius: "10px",
+    fontSize: "16px",
+    boxSizing: "border-box",
+  },
+  textarea: {
+    width: "100%",
+    padding: "12px 14px",
+    border: "1px solid #d1d5db",
+    borderRadius: "10px",
+    fontSize: "16px",
+    resize: "vertical",
+    boxSizing: "border-box",
+    fontFamily: "inherit",
+  },
+  preview: {
+    width: "100%",
+    maxHeight: "280px",
+    objectFit: "cover",
+    borderRadius: "12px",
+    border: "1px solid #e5e7eb",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "16px",
+  },
   checkRow: { display: "flex", gap: "20px", flexWrap: "wrap" },
   checkLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 600 },
-  noteBox: { background: "#f3f4f6", borderRadius: "10px", padding: "12px 14px", color: "#111" },
+  noteBox: {
+    background: "#f3f4f6",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    color: "#111",
+  },
   buttonRow: { display: "flex", justifyContent: "flex-end" },
-  submitButton: { display: "inline-block", background: "#111827", color: "#fff", textDecoration: "none", border: "none", borderRadius: "10px", padding: "12px 18px", fontWeight: 700, cursor: "pointer" },
-  message: { margin: 0, color: "#111", background: "#f3f4f6", padding: "12px 14px", borderRadius: "10px" },
+  submitButton: {
+    display: "inline-block",
+    background: "#111827",
+    color: "#fff",
+    textDecoration: "none",
+    border: "none",
+    borderRadius: "10px",
+    padding: "12px 18px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  message: {
+    margin: 0,
+    color: "#111",
+    background: "#f3f4f6",
+    padding: "12px 14px",
+    borderRadius: "10px",
+  },
 };
