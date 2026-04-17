@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { formatDateJST } from "@/lib/format-date";
 import Link from "next/link";
 
 type PostSummary = {
@@ -26,12 +27,6 @@ type Props = {
   posts: PostSummary[];
 };
 
-function formatDate(value: string | null) {
-  if (!value) return "日時未設定";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "日時不明";
-  return date.toLocaleString("ja-JP");
-}
 
 function trimText(text: string, max = 120) {
   if (text.length <= max) return text;
@@ -165,12 +160,12 @@ export default function PostListClient({ posts }: Props) {
 
                   <div style={styles.infoGrid}>
                     <span>投稿者: {post.author}</span>
-                    <span>公開日: {formatDate(post.published_at)}</span>
+                    <span>公開日: {formatDateJST(post.published_at)}</span>
                     <span>既読: {post.actual_read_count ?? post.read_count ?? 0}</span>
                     <span>コメント: {post.comment_count ?? 0}</span>
                     <span>リアクション: {post.reaction_count ?? 0}</span>
                     {post.required && post.required_deadline ? (
-                      <span>必読期限: {formatDate(post.required_deadline)}</span>
+                      <span>必読期限: {formatDateJST(post.required_deadline)}</span>
                     ) : null}
                   </div>
 
