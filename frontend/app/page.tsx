@@ -3,6 +3,7 @@ export const revalidate = 0;
 
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { formatDateJST } from "@/lib/format-date";
 import PostListClient from "@/components/post-list-client";
 import AuthStatus from "@/components/auth-status";
 
