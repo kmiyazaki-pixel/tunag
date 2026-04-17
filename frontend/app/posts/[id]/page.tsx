@@ -121,9 +121,6 @@ export default async function PostDetailPage({ params }: PageProps) {
           </Link>
 
           <div style={styles.topActions}>
-            <Link href="/admin" style={styles.adminLink}>
-              投稿管理
-            </Link>
             <Link href={`/admin/edit/${safePost.id}`} style={styles.editLink}>
               編集
             </Link>
