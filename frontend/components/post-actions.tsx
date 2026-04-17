@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -21,16 +21,66 @@ export default function PostActions({
   const { userInfo, loadingUser } = useAuthUser();
 
   const [reactionCount, setReactionCount] = useState(initialReactionCount ?? 0);
-  const [readCount] = useState(initialReadCount ?? 0);
+  const [readCount, setReadCount] = useState(initialReadCount ?? 0);
   const [commentBody, setCommentBody] = useState("");
   const [loadingLike, setLoadingLike] = useState(false);
   const [loadingRead, setLoadingRead] = useState(false);
   const [loadingComment, setLoadingComment] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const autoReadDoneRef = useRef(false);
+
   const canSubmitComment = useMemo(() => {
     return !!userInfo && commentBody.trim() !== "";
   }, [userInfo, commentBody]);
+
+  async function registerRead(silent = false) {
+    if (!userInfo) {
+      if (!silent) setMessage("ログインしてください。");
+      return false;
+    }
+    if (loadingRead) return false;
+
+    setLoadingRead(true);
+    if (!silent) setMessage(null);
+
+    const { error } = await supabase.from("post_reads").upsert(
+      [
+        {
+          post_id: postId,
+          reader_name: userInfo.name,
+        },
+      ],
+      {
+        onConflict: "post_id,reader_name",
+      }
+    );
+
+    setLoadingRead(false);
+
+    if (error) {
+      if (!silent) {
+        setMessage(`既読登録に失敗しました: ${error.message}`);
+      }
+      return false;
+    }
+
+    setReadCount((prev) => Math.max(prev, prev + 1));
+    if (!silent) {
+      setMessage("既読登録しました。");
+    }
+    router.refresh();
+    return true;
+  }
+
+  useEffect(() => {
+    if (loadingUser) return;
+    if (!userInfo) return;
+    if (autoReadDoneRef.current) return;
+
+    autoReadDoneRef.current = true;
+    void registerRead(true);
+  }, [loadingUser, userInfo, postId]);
 
   async function handleLike() {
     if (!userInfo) {
@@ -62,36 +112,7 @@ export default function PostActions({
   }
 
   async function handleRead() {
-    if (!userInfo) {
-      setMessage("ログインしてください。");
-      return;
-    }
-    if (loadingRead) return;
-
-    setLoadingRead(true);
-    setMessage(null);
-
-    const { error } = await supabase.from("post_reads").upsert(
-      [
-        {
-          post_id: postId,
-          reader_name: userInfo.name,
-        },
-      ],
-      {
-        onConflict: "post_id,reader_name",
-      }
-    );
-
-    setLoadingRead(false);
-
-    if (error) {
-      setMessage(`既読登録に失敗しました: ${error.message}`);
-      return;
-    }
-
-    setMessage("既読登録しました。");
-    router.refresh();
+    await registerRead(false);
   }
 
   async function handleCommentSubmit(e: React.FormEvent<HTMLFormElement>) {
