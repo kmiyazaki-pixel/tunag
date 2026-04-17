@@ -96,10 +96,7 @@ export default function CommentList({ comments }: Props) {
     setLoadingId(commentId);
     setMessage(null);
 
-    const { error } = await supabase
-      .from("post_comments")
-      .delete()
-      .eq("id", commentId);
+    const { error } = await supabase.from("post_comments").delete().eq("id", commentId);
 
     setLoadingId(null);
 
@@ -120,16 +117,25 @@ export default function CommentList({ comments }: Props) {
     <div style={styles.wrapper}>
       {loadingUser ? <div style={styles.infoBox}>ログイン状態を確認中...</div> : null}
 
-      {comments.map((comment) => {
+      {comments.map((comment, index) => {
         const isEditing = editingId === comment.id;
         const isLoading = loadingId === comment.id;
         const manageable = canManage(comment);
 
+        const itemStyle =
+          index % 4 === 0
+            ? styles.commentPink
+            : index % 4 === 1
+            ? styles.commentBlue
+            : index % 4 === 2
+            ? styles.commentGreen
+            : styles.commentYellow;
+
         return (
-          <div key={comment.id} style={styles.commentItem}>
+          <div key={comment.id} style={{ ...styles.commentItem, ...itemStyle }}>
             <div style={styles.commentHead}>
-              <strong>{comment.author}</strong>
-              <span>{formatDate(comment.created_at)}</span>
+              <strong style={styles.author}>{comment.author}</strong>
+              <span style={styles.date}>{formatDate(comment.created_at)}</span>
             </div>
 
             {isEditing ? (
@@ -151,7 +157,7 @@ export default function CommentList({ comments }: Props) {
                   </button>
                   <button
                     type="button"
-                    style={styles.primaryButton}
+                    style={styles.saveButton}
                     onClick={() => saveEdit(comment.id)}
                     disabled={isLoading}
                   >
@@ -196,25 +202,49 @@ export default function CommentList({ comments }: Props) {
 const styles: Record<string, React.CSSProperties> = {
   wrapper: {
     display: "grid",
-    gap: "12px",
+    gap: "14px",
   },
   commentItem: {
-    background: "#f9fafb",
-    borderRadius: "12px",
-    padding: "14px 16px",
+    borderRadius: "18px",
+    padding: "16px 18px",
+    boxShadow: "0 10px 24px rgba(91, 98, 133, 0.10)",
+    border: "1px solid rgba(255,255,255,0.8)",
+  },
+  commentPink: {
+    background: "linear-gradient(180deg, #fff8fb 0%, #fdf2f8 100%)",
+  },
+  commentBlue: {
+    background: "linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%)",
+  },
+  commentGreen: {
+    background: "linear-gradient(180deg, #f7fff9 0%, #ecfdf3 100%)",
+  },
+  commentYellow: {
+    background: "linear-gradient(180deg, #fffdf5 0%, #fef3c7 100%)",
   },
   commentHead: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
-    color: "#444",
-    marginBottom: "8px",
+    marginBottom: "10px",
     flexWrap: "wrap",
+    alignItems: "center",
+  },
+  author: {
+    color: "#1f2340",
+    fontSize: "18px",
+  },
+  date: {
+    color: "#5b6285",
+    fontSize: "14px",
+    fontWeight: 700,
   },
   commentBody: {
     margin: 0,
-    lineHeight: 1.8,
+    lineHeight: 1.9,
     whiteSpace: "pre-wrap",
+    color: "#2d335a",
+    fontSize: "15px",
   },
   editArea: {
     display: "grid",
@@ -223,18 +253,19 @@ const styles: Record<string, React.CSSProperties> = {
   textarea: {
     width: "100%",
     padding: "12px 14px",
-    border: "1px solid #d1d5db",
-    borderRadius: "10px",
+    border: "1px solid #d8dcef",
+    borderRadius: "12px",
     fontSize: "16px",
     resize: "vertical",
     boxSizing: "border-box",
     fontFamily: "inherit",
+    background: "#fff",
   },
   actionRow: {
     display: "flex",
     gap: "10px",
     justifyContent: "flex-end",
-    marginTop: "12px",
+    marginTop: "14px",
     flexWrap: "wrap",
   },
   buttonRow: {
@@ -243,49 +274,52 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "flex-end",
     flexWrap: "wrap",
   },
-  primaryButton: {
-    background: "#111827",
+  saveButton: {
+    background: "linear-gradient(90deg, #8b5cf6, #6366f1)",
     color: "#fff",
     border: "none",
-    borderRadius: "10px",
+    borderRadius: "12px",
     padding: "10px 14px",
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: "pointer",
+    boxShadow: "0 8px 18px rgba(139, 92, 246, 0.22)",
   },
   secondaryButton: {
     background: "#fff",
-    color: "#111",
-    border: "1px solid #d1d5db",
-    borderRadius: "10px",
+    color: "#1f2340",
+    border: "1px solid #d8dcef",
+    borderRadius: "12px",
     padding: "10px 14px",
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: "pointer",
   },
   deleteButton: {
-    background: "#dc2626",
+    background: "linear-gradient(90deg, #ef4444, #dc2626)",
     color: "#fff",
     border: "none",
-    borderRadius: "10px",
+    borderRadius: "12px",
     padding: "10px 14px",
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: "pointer",
+    boxShadow: "0 8px 18px rgba(239, 68, 68, 0.22)",
   },
   message: {
     margin: 0,
-    color: "#111",
+    color: "#1f2340",
     background: "#fff",
     padding: "12px 14px",
-    borderRadius: "10px",
+    borderRadius: "12px",
+    boxShadow: "0 8px 18px rgba(91, 98, 133, 0.08)",
   },
   empty: {
     color: "#666",
     margin: 0,
   },
   infoBox: {
-    background: "#f3f4f6",
-    color: "#111",
+    background: "linear-gradient(135deg, #eef2ff 0%, #dbeafe 100%)",
+    color: "#1e3a8a",
     padding: "12px 14px",
     borderRadius: "12px",
-    fontWeight: 700,
+    fontWeight: 800,
   },
 };
