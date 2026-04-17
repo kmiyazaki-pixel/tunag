@@ -1,89 +1,87 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { useAuthUser } from "@/hooks/use-auth-user";
+
+type PostStatus = "draft" | "published" | "archived";
 
 function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]/g, "_");
 }
 
-type PostStatus = "draft" | "published" | "archived";
-type MyProfile = {
-  id: string;
-  name: string;
-  role: "member" | "editor" | "admin";
-};
-
-export default function NewPostPage() {
+export default function EditPostPage() {
   const router = useRouter();
+  const params = useParams();
+  const { userInfo, loadingUser } = useAuthUser();
 
-  const [profile, setProfile] = useState<MyProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const rawId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const postId = Number(rawId);
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("お知らせ");
+  const [author, setAuthor] = useState("管理者");
   const [status, setStatus] = useState<PostStatus>("published");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [required, setRequired] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [requiredDeadline, setRequiredDeadline] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-
-    async function loadProfile() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      if (!session?.user) {
-        setProfile(null);
-        setLoadingProfile(false);
+    async function loadPost() {
+      if (!rawId || Number.isNaN(postId)) {
+        setMessage("不正な投稿IDです。");
+        setLoading(false);
         return;
       }
 
-      const { data } = await supabase
-        .from("profiles")
-        .select("id,name,role")
-        .eq("auth_user_id", session.user.id)
-        .maybeSingle();
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("id", postId)
+        .single();
 
-      if (!mounted) return;
+      if (error || !data) {
+        setMessage(`投稿の取得に失敗しました: ${error?.message ?? "not found"}`);
+        setLoading(false);
+        return;
+      }
 
-      setProfile((data as MyProfile | null) ?? null);
-      setLoadingProfile(false);
+      setTitle(data.title ?? "");
+      setBody(data.body ?? "");
+      setCategory(data.category ?? "お知らせ");
+      setAuthor(data.author ?? "管理者");
+      setStatus((data.status as PostStatus) ?? "published");
+      setImageUrl(data.image_url ?? "");
+      setPreviewUrl(data.image_url ?? "");
+      setRequired(Boolean(data.required));
+      setIsPinned(Boolean(data.is_pinned));
+      setRequiredDeadline(
+        data.required_deadline ? new Date(data.required_deadline).toISOString().slice(0, 16) : ""
+      );
+
+      setLoading(false);
     }
 
-    loadProfile();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      loadProfile();
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const canPost = profile?.role === "admin" || profile?.role === "editor";
+    loadPost();
+  }, [rawId, postId]);
 
   const isValid = useMemo(() => {
     return title.trim() !== "" && body.trim() !== "";
   }, [title, body]);
 
   async function uploadImageIfNeeded() {
-    if (!imageFile) return null;
+    if (!imageFile) return imageUrl || null;
 
     const parts = imageFile.name.split(".");
     const ext = parts.length > 1 ? parts[parts.length - 1] : "jpg";
@@ -105,10 +103,14 @@ export default function NewPostPage() {
     return data.publicUrl;
   }
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!isValid || saving || !profile || !canPost) return;
+    if (!userInfo) {
+      setMessage("ログインしてください。");
+      return;
+    }
+    if (!isValid || saving || Number.isNaN(postId)) return;
 
     setSaving(true);
     setMessage(null);
@@ -120,70 +122,82 @@ export default function NewPostPage() {
         title: title.trim(),
         body: body.trim(),
         category: category.trim() || "お知らせ",
-        required,
-        author: profile.name,
-        author_profile_id: profile.id,
-        image_url: uploadedImageUrl || null,
+        author: author.trim() || userInfo.name,
         status,
+        image_url: uploadedImageUrl,
+        required,
         is_pinned: isPinned,
         required_deadline:
           required && requiredDeadline ? new Date(requiredDeadline).toISOString() : null,
       };
 
-      const { data, error } = await supabase
-        .from("posts")
-        .insert([payload])
-        .select("id,status")
-        .single();
+      const { error } = await supabase.from("posts").update(payload).eq("id", postId);
 
       if (error) {
         throw new Error(error.message);
       }
 
-      if (data?.id) {
-        router.refresh();
+      router.refresh();
 
-        if (data.status === "published") {
-          router.push(`/posts/${data.id}`);
-          return;
-        }
-
-        router.push("/admin");
+      if (status === "published") {
+        router.push(`/posts/${postId}`);
         return;
       }
 
-      router.push("/admin");
+      router.push("/");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "保存に失敗しました。";
-      setMessage(`保存に失敗しました: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : "更新に失敗しました。";
+      setMessage(`更新に失敗しました: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
   }
 
-  if (loadingProfile) {
-    return <main style={styles.main}><div style={styles.container}><div style={styles.card}>読み込み中...</div></div></main>;
+  async function handleDelete() {
+    if (!userInfo) {
+      setMessage("ログインしてください。");
+      return;
+    }
+    if (deleting || Number.isNaN(postId)) return;
+
+    const ok = window.confirm("この投稿を削除します。よろしいですか？");
+    if (!ok) return;
+
+    setDeleting(true);
+    setMessage(null);
+
+    const { error } = await supabase.from("posts").delete().eq("id", postId);
+
+    setDeleting(false);
+
+    if (error) {
+      setMessage(`削除に失敗しました: ${error.message}`);
+      return;
+    }
+
+    router.refresh();
+    router.push("/");
   }
 
-  if (!profile) {
+  if (loadingUser || loading) {
     return (
       <main style={styles.main}>
         <div style={styles.container}>
-          <div style={styles.card}>
-            <p>投稿作成にはログインが必要です。</p>
-            <Link href="/login" style={styles.submitButton}>ログインする</Link>
-          </div>
+          <div style={styles.card}>読み込み中...</div>
         </div>
       </main>
     );
   }
 
-  if (!canPost) {
+  if (!userInfo) {
     return (
       <main style={styles.main}>
         <div style={styles.container}>
           <div style={styles.card}>
-            <p>このアカウントには投稿権限がありません。</p>
+            <p style={styles.message}>編集にはログインが必要です。</p>
+            <Link href="/login" style={styles.submitButton}>
+              ログインする
+            </Link>
           </div>
         </div>
       </main>
@@ -194,16 +208,16 @@ export default function NewPostPage() {
     <main style={styles.main}>
       <div style={styles.container}>
         <div style={styles.topRow}>
-          <Link href="/admin" style={styles.backLink}>
-            ← 投稿管理へ戻る
+          <Link href="/" style={styles.backLink}>
+            ← 一覧へ戻る
           </Link>
         </div>
 
         <div style={styles.card}>
-          <h1 style={styles.title}>新規投稿作成</h1>
-          <p style={styles.subtitle}>ログイン中: {profile.name} / {profile.role}</p>
+          <h1 style={styles.title}>投稿を編集</h1>
+          <p style={styles.subtitle}>ログイン中: {userInfo.name}</p>
 
-          <form onSubmit={handleSubmit} style={styles.form}>
+          <form onSubmit={handleSave} style={styles.form}>
             <label style={styles.label}>
               <span>タイトル</span>
               <input style={styles.input} value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -227,14 +241,19 @@ export default function NewPostPage() {
               </label>
 
               <label style={styles.label}>
-                <span>公開状態</span>
-                <select style={styles.input} value={status} onChange={(e) => setStatus(e.target.value as PostStatus)}>
-                  <option value="draft">下書き</option>
-                  <option value="published">公開</option>
-                  <option value="archived">アーカイブ</option>
-                </select>
+                <span>投稿者</span>
+                <input style={styles.input} value={author} onChange={(e) => setAuthor(e.target.value)} />
               </label>
             </div>
+
+            <label style={styles.label}>
+              <span>公開状態</span>
+              <select style={styles.input} value={status} onChange={(e) => setStatus(e.target.value as PostStatus)}>
+                <option value="draft">下書き</option>
+                <option value="published">公開</option>
+                <option value="archived">アーカイブ</option>
+              </select>
+            </label>
 
             <label style={styles.label}>
               <span>画像アップロード</span>
@@ -245,7 +264,7 @@ export default function NewPostPage() {
                 onChange={(e) => {
                   const file = e.target.files?.[0] ?? null;
                   setImageFile(file);
-                  setPreviewUrl(file ? URL.createObjectURL(file) : "");
+                  setPreviewUrl(file ? URL.createObjectURL(file) : imageUrl);
                 }}
               />
             </label>
@@ -276,14 +295,13 @@ export default function NewPostPage() {
               </label>
             ) : null}
 
-            <div style={styles.noteBox}>
-              現在の状態:{" "}
-              <strong>{status === "draft" ? "下書き" : status === "published" ? "公開" : "アーカイブ"}</strong>
-            </div>
-
             <div style={styles.buttonRow}>
-              <button type="submit" style={styles.submitButton} disabled={!isValid || saving}>
-                {saving ? "保存中..." : "保存する"}
+              <button type="button" onClick={handleDelete} disabled={deleting} style={styles.deleteButton}>
+                {deleting ? "削除中..." : "削除"}
+              </button>
+
+              <button type="submit" disabled={!isValid || saving} style={styles.submitButton}>
+                {saving ? "更新中..." : "更新する"}
               </button>
             </div>
 
@@ -300,19 +318,74 @@ const styles: Record<string, React.CSSProperties> = {
   container: { maxWidth: "820px", margin: "0 auto" },
   topRow: { marginBottom: "20px" },
   backLink: { textDecoration: "none", color: "#2563eb", fontWeight: 700 },
-  card: { background: "#fff", borderRadius: "18px", padding: "24px", boxShadow: "0 4px 16px rgba(0,0,0,0.06)" },
+  card: {
+    background: "#fff",
+    borderRadius: "18px",
+    padding: "24px",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+  },
   title: { margin: "0 0 8px", fontSize: "30px" },
   subtitle: { margin: "0 0 20px", color: "#666" },
   form: { display: "grid", gap: "18px" },
   label: { display: "grid", gap: "8px", fontWeight: 600 },
-  input: { width: "100%", padding: "12px 14px", border: "1px solid #d1d5db", borderRadius: "10px", fontSize: "16px", boxSizing: "border-box" },
-  textarea: { width: "100%", padding: "12px 14px", border: "1px solid #d1d5db", borderRadius: "10px", fontSize: "16px", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" },
-  preview: { width: "100%", maxHeight: "280px", objectFit: "cover", borderRadius: "12px", border: "1px solid #e5e7eb" },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" },
+  input: {
+    width: "100%",
+    padding: "12px 14px",
+    border: "1px solid #d1d5db",
+    borderRadius: "10px",
+    fontSize: "16px",
+    boxSizing: "border-box",
+  },
+  textarea: {
+    width: "100%",
+    padding: "12px 14px",
+    border: "1px solid #d1d5db",
+    borderRadius: "10px",
+    fontSize: "16px",
+    resize: "vertical",
+    boxSizing: "border-box",
+    fontFamily: "inherit",
+  },
+  preview: {
+    width: "100%",
+    maxHeight: "280px",
+    objectFit: "cover",
+    borderRadius: "12px",
+    border: "1px solid #e5e7eb",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "16px",
+  },
   checkRow: { display: "flex", gap: "20px", flexWrap: "wrap" },
   checkLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 600 },
-  noteBox: { background: "#f3f4f6", borderRadius: "10px", padding: "12px 14px", color: "#111" },
-  buttonRow: { display: "flex", justifyContent: "flex-end" },
-  submitButton: { display: "inline-block", background: "#111827", color: "#fff", textDecoration: "none", border: "none", borderRadius: "10px", padding: "12px 18px", fontWeight: 700, cursor: "pointer" },
-  message: { margin: 0, color: "#111", background: "#f3f4f6", padding: "12px 14px", borderRadius: "10px" },
+  buttonRow: { display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" },
+  submitButton: {
+    display: "inline-block",
+    background: "#111827",
+    color: "#fff",
+    textDecoration: "none",
+    border: "none",
+    borderRadius: "10px",
+    padding: "12px 18px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  deleteButton: {
+    background: "#dc2626",
+    color: "#fff",
+    border: "none",
+    borderRadius: "10px",
+    padding: "12px 18px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  message: {
+    margin: 0,
+    color: "#111",
+    background: "#f3f4f6",
+    padding: "12px 14px",
+    borderRadius: "10px",
+  },
 };
