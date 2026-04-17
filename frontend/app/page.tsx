@@ -3,6 +3,7 @@ export const revalidate = 0;
 
 import { supabase } from "@/lib/supabase";
 import PostListClient from "@/components/post-list-client";
+import AuthStatus from "@/components/auth-status";
 
 type PostSummary = {
   id: number;
@@ -56,6 +57,10 @@ export default async function HomePage() {
             <h1 style={styles.title}>社内ポータル</h1>
             <p style={styles.subtitle}>TUNAG風の社内報MVP</p>
           </div>
+
+          <div style={styles.headerActions}>
+            <AuthStatus />
+          </div>
         </header>
 
         <section style={styles.dashboard}>
@@ -99,6 +104,12 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: "16px",
     marginBottom: "24px",
+    flexWrap: "wrap",
+  },
+  headerActions: {
+    display: "flex",
+    gap: "12px",
+    alignItems: "center",
     flexWrap: "wrap",
   },
   title: {
