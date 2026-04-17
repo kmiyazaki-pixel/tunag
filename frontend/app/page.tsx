@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import PostListClient from "@/components/post-list-client";
 import AuthStatus from "@/components/auth-status";
@@ -59,6 +60,9 @@ export default async function HomePage() {
           </div>
 
           <div style={styles.headerActions}>
+            <Link href="/admin/new" style={styles.primaryButton}>
+              新規投稿
+            </Link>
             <AuthStatus />
           </div>
         </header>
@@ -140,6 +144,15 @@ const styles: Record<string, React.CSSProperties> = {
   },
   cardValue: {
     fontSize: "28px",
+    fontWeight: 700,
+  },
+  primaryButton: {
+    display: "inline-block",
+    background: "#111827",
+    color: "#fff",
+    textDecoration: "none",
+    padding: "12px 16px",
+    borderRadius: "10px",
     fontWeight: 700,
   },
   error: {
