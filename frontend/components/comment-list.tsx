@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { formatDateJST } from "@/lib/format-date";
 
 type Comment = {
   id: number;
@@ -17,12 +18,6 @@ type Props = {
   comments: Comment[];
 };
 
-function formatDate(value: string | null) {
-  if (!value) return "日時未設定";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "日時不明";
-  return date.toLocaleString("ja-JP");
-}
 
 export default function CommentList({ comments }: Props) {
   const router = useRouter();
@@ -135,7 +130,7 @@ export default function CommentList({ comments }: Props) {
           <div key={comment.id} style={{ ...styles.commentItem, ...itemStyle }}>
             <div style={styles.commentHead}>
               <strong style={styles.author}>{comment.author}</strong>
-              <span style={styles.date}>{formatDate(comment.created_at)}</span>
+              <span style={styles.date}>{formatDateJST(comment.created_at)}</span>
             </div>
 
             {isEditing ? (
