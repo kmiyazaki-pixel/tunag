@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 type UserInfo = {
@@ -60,20 +59,12 @@ export default function AuthStatus() {
   }
 
   if (!userInfo) {
-    return (
-      <div style={styles.row}>
-        <Link href="/login" style={styles.primaryButton}>
-          ログイン
-        </Link>
-      </div>
-    );
+    return null;
   }
 
   return (
     <div style={styles.row}>
-      <div style={styles.box}>
-        {userInfo.name || userInfo.email || "ログイン中"}
-      </div>
+      <div style={styles.box}>{userInfo.name || userInfo.email || "ログイン中"}</div>
       <button type="button" onClick={handleLogout} style={styles.secondaryButton}>
         ログアウト
       </button>
@@ -90,15 +81,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   box: {
     background: "#fff",
-    padding: "10px 14px",
-    borderRadius: "10px",
-    fontWeight: 700,
-  },
-  primaryButton: {
-    display: "inline-block",
-    background: "#111827",
-    color: "#fff",
-    textDecoration: "none",
     padding: "10px 14px",
     borderRadius: "10px",
     fontWeight: 700,
