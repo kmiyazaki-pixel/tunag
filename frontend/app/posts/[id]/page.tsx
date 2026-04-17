@@ -3,6 +3,7 @@ export const revalidate = 0;
 
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { formatDateJST } from "@/lib/format-date";
 import PostActions from "@/components/post-actions";
 import CommentList from "@/components/comment-list";
 
@@ -44,12 +45,6 @@ type ReadRow = {
   read_at?: string | null;
 };
 
-function formatDate(value: string | null) {
-  if (!value) return "日時未設定";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "日時不明";
-  return date.toLocaleString("ja-JP");
-}
 
 function getDeadlineStatus(required: boolean, deadline: string | null) {
   if (!required) return "normal";
@@ -150,10 +145,10 @@ export default async function PostDetailPage({ params }: PageProps) {
 
             <div style={styles.meta}>
               <span>投稿者: {safePost.author}</span>
-              <span>公開日: {formatDate(safePost.published_at)}</span>
-              <span>更新日: {formatDate(safePost.updated_at)}</span>
+              <span>公開日: {formatDateJST(safePost.published_at)}</span>
+              <span>更新日: {formatDateJST(safePost.updated_at)}</span>
               {safePost.required && safePost.required_deadline ? (
-                <span>必読期限: {formatDate(safePost.required_deadline)}</span>
+                <span>必読期限: {formatDateJST(safePost.required_deadline)}</span>
               ) : null}
             </div>
 
@@ -179,7 +174,7 @@ export default async function PostDetailPage({ params }: PageProps) {
               {safeReads.map((read) => (
                 <div key={read.id} style={styles.readItem}>
                   <strong>{read.reader_name}</strong>
-                  <span>{formatDate(read.read_at ?? read.created_at)}</span>
+                  <span>{formatDateJST(read.read_at ?? read.created_at)}</span>
                 </div>
               ))}
             </div>
