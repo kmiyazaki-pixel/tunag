@@ -98,10 +98,7 @@ export default function CommentList({ comments }: Props) {
 
     const { error } = await supabase
       .from("post_comments")
-      .update({
-        deleted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .delete()
       .eq("id", commentId);
 
     setLoadingId(null);
