@@ -254,10 +254,7 @@ export default function PostActions({
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  wrapper: {
-    display: "grid",
-    gap: "20px",
-  },
+  wrapper: { display: "grid", gap: "20px" },
   countRow: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
