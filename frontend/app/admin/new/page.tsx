@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { toJapaneseErrorMessage } from "@/lib/error-message";
+import { writeAuditLog } from "@/lib/audit-log";
 
 type PostStatus = "draft" | "published";
 
@@ -93,6 +95,19 @@ export default function NewPostPage() {
         throw new Error(error.message);
       }
 
+      await writeAuditLog({
+        action: "post_create",
+        targetType: "post",
+        targetId: data?.id,
+        detail: {
+          title: title.trim(),
+          status,
+          category: category.trim() || "お知らせ",
+          required,
+          isPinned,
+        },
+      });
+
       router.refresh();
 
       if (data?.id && data.status === "published") {
@@ -102,7 +117,8 @@ export default function NewPostPage() {
 
       router.push("/admin/drafts");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "保存に失敗しました。";
+      const errorMessage =
+        err instanceof Error ? toJapaneseErrorMessage(err.message) : "保存に失敗しました。";
       setMessage(`保存に失敗しました: ${errorMessage}`);
     } finally {
       setSaving(false);
@@ -324,9 +340,9 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "20px",
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
     gap: "12px",
     flexWrap: "wrap",
+    alignItems: "center",
   },
   topActions: {
     display: "flex",
