@@ -60,7 +60,36 @@ function formatDetail(detail: Record<string, unknown> | null) {
   const entries = Object.entries(detail);
   if (entries.length === 0) return "―";
 
-  return entries.map(([key, value]) => `${key}: ${String(value)}`).join(" / ");
+  const keyLabelMap: Record<string, string> = {
+    email: "メールアドレス",
+    title: "タイトル",
+    status: "公開状態",
+    category: "カテゴリ",
+    isPinned: "固定表示",
+    required: "必読",
+    readerName: "既読者",
+    reactionType: "リアクション種別",
+    body: "本文",
+    author: "投稿者",
+  };
+
+  const valueLabelMap: Record<string, string> = {
+    published: "公開",
+    draft: "下書き",
+    archived: "アーカイブ",
+    like: "いいね",
+    true: "あり",
+    false: "なし",
+  };
+
+  return entries
+    .map(([key, value]) => {
+      const label = keyLabelMap[key] ?? key;
+      const rawValue = String(value);
+      const displayValue = valueLabelMap[rawValue] ?? rawValue;
+      return `${label}: ${displayValue}`;
+    })
+    .join(" / ");
 }
 
 export default function AuditLogsPage() {
