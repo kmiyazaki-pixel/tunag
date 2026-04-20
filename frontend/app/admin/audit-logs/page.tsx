@@ -1,6 +1,6 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+"use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { formatDateJST } from "@/lib/format-date";
@@ -60,36 +60,46 @@ function formatDetail(detail: Record<string, unknown> | null) {
   const entries = Object.entries(detail);
   if (entries.length === 0) return "―";
 
-  return entries
-    .map(([key, value]) => `${key}: ${String(value)}`)
-    .join(" / ");
+  return entries.map(([key, value]) => `${key}: ${String(value)}`).join(" / ");
 }
 
-export default async function AuditLogsPage() {
-  const { data, error } = await supabase
-    .from("audit_logs")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(100);
+export default function AuditLogsPage() {
+  const [logs, setLogs] = useState<AuditLogRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<string | null>(null);
 
-  if (error) {
-    return (
-      <main style={styles.main}>
-        <div style={styles.bgCircle1} />
-        <div style={styles.bgCircle2} />
-        <div style={styles.container}>
-          <div style={styles.topRow}>
-            <Link href="/" style={styles.backLink}>
-              ← 一覧へ戻る
-            </Link>
-          </div>
-          <p style={styles.error}>監査ログ取得に失敗しました: {error.message}</p>
-        </div>
-      </main>
-    );
-  }
+  useEffect(() => {
+    let mounted = true;
 
-  const logs = (data ?? []) as AuditLogRow[];
+    async function loadLogs() {
+      setLoading(true);
+      setMessage(null);
+
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (!mounted) return;
+
+      if (error) {
+        setMessage(`監査ログ取得に失敗しました: ${error.message}`);
+        setLogs([]);
+        setLoading(false);
+        return;
+      }
+
+      setLogs((data ?? []) as AuditLogRow[]);
+      setLoading(false);
+    }
+
+    loadLogs();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <main style={styles.main}>
@@ -117,7 +127,11 @@ export default async function AuditLogsPage() {
         </section>
 
         <section style={styles.tableWrap}>
-          {logs.length === 0 ? (
+          {loading ? (
+            <div style={styles.emptyBox}>読み込み中...</div>
+          ) : message ? (
+            <div style={styles.error}>{message}</div>
+          ) : logs.length === 0 ? (
             <div style={styles.emptyBox}>監査ログはまだありません。</div>
           ) : (
             <div style={styles.tableScroll}>
@@ -134,10 +148,7 @@ export default async function AuditLogsPage() {
                 </thead>
                 <tbody>
                   {logs.map((log, index) => (
-                    <tr
-                      key={log.id}
-                      style={index % 2 === 0 ? styles.rowEven : styles.rowOdd}
-                    >
+                    <tr key={log.id} style={index % 2 === 0 ? styles.rowEven : styles.rowOdd}>
                       <td style={styles.td}>{formatDateJST(log.created_at)}</td>
                       <td style={styles.td}>{log.user_name}</td>
                       <td style={styles.td}>
