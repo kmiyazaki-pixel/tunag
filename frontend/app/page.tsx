@@ -71,6 +71,9 @@ export default async function HomePage() {
             <Link href="/admin/new" style={styles.primaryButton}>
               新規投稿
             </Link>
+            <Link href="/admin/audit-logs" style={styles.secondaryButton}>
+             監査ログ
+            </Link>
             <AuthStatus />
           </div>
         </header>
@@ -236,5 +239,15 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#fee2e2",
     padding: "16px",
     borderRadius: "14px",
+  },
+  secondaryButton: {
+  display: "inline-block",
+  background: "linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%)",
+  color: "#9a3412",
+  textDecoration: "none",
+  padding: "12px 16px",
+  borderRadius: "12px",
+  fontWeight: 800,
+  boxShadow: "0 8px 18px rgba(251, 146, 60, 0.18)",
   },
 };
