@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { toJapaneseErrorMessage } from "@/lib/error-message";
+import { writeAuditLog } from "@/lib/audit-log";
 
 type Props = {
   postId: number;
@@ -60,12 +62,21 @@ export default function PostActions({
 
     if (error) {
       if (!silent) {
-        setMessage(`既読登録に失敗しました: ${error.message}`);
+        setMessage(`既読登録に失敗しました: ${toJapaneseErrorMessage(error.message)}`);
       }
       return false;
     }
 
-    setReadCount((prev) => Math.max(prev, prev + 1));
+    await writeAuditLog({
+      action: "post_read",
+      targetType: "post",
+      targetId: postId,
+      detail: {
+        readerName: userInfo.name,
+      },
+    });
+
+    setReadCount((prev) => prev + 1);
     if (!silent) {
       setMessage("既読登録しました。");
     }
@@ -102,9 +113,18 @@ export default function PostActions({
     setLoadingLike(false);
 
     if (error) {
-      setMessage(`いいねに失敗しました: ${error.message}`);
+      setMessage(`いいねに失敗しました: ${toJapaneseErrorMessage(error.message)}`);
       return;
     }
+
+    await writeAuditLog({
+      action: "post_like",
+      targetType: "post",
+      targetId: postId,
+      detail: {
+        reactionType: "like",
+      },
+    });
 
     setReactionCount((prev) => prev + 1);
     setMessage("いいねしました。");
@@ -127,20 +147,32 @@ export default function PostActions({
     setLoadingComment(true);
     setMessage(null);
 
+    const bodyText = commentBody.trim();
+
     const { error } = await supabase.from("post_comments").insert([
       {
         post_id: postId,
         author: userInfo.name,
-        body: commentBody.trim(),
+        body: bodyText,
       },
     ]);
 
     setLoadingComment(false);
 
     if (error) {
-      setMessage(`コメント投稿に失敗しました: ${error.message}`);
+      setMessage(`コメント投稿に失敗しました: ${toJapaneseErrorMessage(error.message)}`);
       return;
     }
+
+    await writeAuditLog({
+      action: "comment_create",
+      targetType: "post",
+      targetId: postId,
+      detail: {
+        author: userInfo.name,
+        body: bodyText,
+      },
+    });
 
     setCommentBody("");
     setMessage("コメントを投稿しました。");
