@@ -71,6 +71,9 @@ export default async function HomePage() {
           </div>
 
           <div style={styles.headerActions}>
+            <Link href={schedulerUrl} style={styles.secondaryButton}>
+             スケジュール
+             </Link>
             <Link href="/admin/new" style={styles.primaryButton}>
               新規投稿
             </Link>
