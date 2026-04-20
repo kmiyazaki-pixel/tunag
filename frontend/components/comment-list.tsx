@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuthUser } from "@/hooks/use-auth-user";
-import { formatDateJST } from "@/lib/format-date";
+import { toJapaneseErrorMessage } from "@/lib/error-message";
+import { writeAuditLog } from "@/lib/audit-log";
 
 type Comment = {
   id: number;
@@ -18,6 +19,12 @@ type Props = {
   comments: Comment[];
 };
 
+function formatDate(value: string | null) {
+  if (!value) return "日時未設定";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "日時不明";
+  return date.toLocaleString("ja-JP");
+}
 
 export default function CommentList({ comments }: Props) {
   const router = useRouter();
@@ -58,10 +65,12 @@ export default function CommentList({ comments }: Props) {
     setLoadingId(commentId);
     setMessage(null);
 
+    const bodyText = editBody.trim();
+
     const { error } = await supabase
       .from("post_comments")
       .update({
-        body: editBody.trim(),
+        body: bodyText,
         updated_at: new Date().toISOString(),
       })
       .eq("id", commentId);
@@ -69,9 +78,18 @@ export default function CommentList({ comments }: Props) {
     setLoadingId(null);
 
     if (error) {
-      setMessage(`コメント更新に失敗しました: ${error.message}`);
+      setMessage(`コメント更新に失敗しました: ${toJapaneseErrorMessage(error.message)}`);
       return;
     }
+
+    await writeAuditLog({
+      action: "comment_update",
+      targetType: "comment",
+      targetId: commentId,
+      detail: {
+        body: bodyText,
+      },
+    });
 
     setEditingId(null);
     setEditBody("");
@@ -96,9 +114,15 @@ export default function CommentList({ comments }: Props) {
     setLoadingId(null);
 
     if (error) {
-      setMessage(`コメント削除に失敗しました: ${error.message}`);
+      setMessage(`コメント削除に失敗しました: ${toJapaneseErrorMessage(error.message)}`);
       return;
     }
+
+    await writeAuditLog({
+      action: "comment_delete",
+      targetType: "comment",
+      targetId: commentId,
+    });
 
     setMessage("コメントを削除しました。");
     router.refresh();
@@ -130,7 +154,7 @@ export default function CommentList({ comments }: Props) {
           <div key={comment.id} style={{ ...styles.commentItem, ...itemStyle }}>
             <div style={styles.commentHead}>
               <strong style={styles.author}>{comment.author}</strong>
-              <span style={styles.date}>{formatDateJST(comment.created_at)}</span>
+              <span style={styles.date}>{formatDate(comment.created_at)}</span>
             </div>
 
             {isEditing ? (
