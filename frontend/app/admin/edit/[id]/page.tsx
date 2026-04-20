@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { toJapaneseErrorMessage } from "@/lib/error-message";
+import { writeAuditLog } from "@/lib/audit-log";
 
 type PostStatus = "draft" | "published" | "archived";
 
@@ -54,7 +56,7 @@ export default function EditPostPage() {
         .single();
 
       if (error || !data) {
-        setMessage(`投稿の取得に失敗しました: ${error?.message ?? "not found"}`);
+        setMessage(`投稿の取得に失敗しました: ${toJapaneseErrorMessage(error?.message ?? "not found")}`);
         setLoading(false);
         return;
       }
@@ -139,6 +141,19 @@ export default function EditPostPage() {
         throw new Error(error.message);
       }
 
+      await writeAuditLog({
+        action: "post_update",
+        targetType: "post",
+        targetId: postId,
+        detail: {
+          title: title.trim(),
+          status,
+          category: category.trim() || "お知らせ",
+          required,
+          isPinned,
+        },
+      });
+
       router.refresh();
 
       if (status === "published") {
@@ -148,7 +163,8 @@ export default function EditPostPage() {
 
       router.push("/");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "更新に失敗しました。";
+      const errorMessage =
+        err instanceof Error ? toJapaneseErrorMessage(err.message) : "更新に失敗しました。";
       setMessage(`更新に失敗しました: ${errorMessage}`);
     } finally {
       setSaving(false);
@@ -173,9 +189,18 @@ export default function EditPostPage() {
     setDeleting(false);
 
     if (error) {
-      setMessage(`削除に失敗しました: ${error.message}`);
+      setMessage(`削除に失敗しました: ${toJapaneseErrorMessage(error.message)}`);
       return;
     }
+
+    await writeAuditLog({
+      action: "post_delete",
+      targetType: "post",
+      targetId: postId,
+      detail: {
+        title: title.trim(),
+      },
+    });
 
     router.refresh();
     router.push("/");
