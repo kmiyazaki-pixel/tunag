@@ -3,6 +3,12 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { toJapaneseErrorMessage } from "@/lib/error-message";
+import { writeAuditLog } from "@/lib/audit-log";
+
+function isValidPassword(password: string) {
+  return /^[A-Za-z0-9]{6,}$/.test(password);
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,6 +29,12 @@ export default function LoginPage() {
 
     try {
       if (mode === "signup") {
+        if (!isValidPassword(password)) {
+          setMessage("パスワードは6文字以上の半角英数字で入力してください。");
+          setLoading(false);
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -35,7 +47,7 @@ export default function LoginPage() {
 
         if (error) throw error;
 
-        setMessage("登録しました。確認メールが必要な設定ならメールを確認してください。");
+        setMessage("登録しました。確認メールが必要な設定の場合はメールをご確認ください。");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -44,12 +56,20 @@ export default function LoginPage() {
 
         if (error) throw error;
 
+        await writeAuditLog({
+          action: "login",
+          targetType: "auth",
+          detail: {
+            email: email.trim(),
+          },
+        });
+
         router.refresh();
         router.push("/");
       }
     } catch (err) {
-      const text = err instanceof Error ? err.message : "認証に失敗しました。";
-      setMessage(text);
+      const raw = err instanceof Error ? err.message : "認証に失敗しました。";
+      setMessage(toJapaneseErrorMessage(raw));
     } finally {
       setLoading(false);
     }
@@ -101,9 +121,13 @@ export default function LoginPage() {
               style={styles.input}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="********"
+              placeholder="6文字以上の半角英数字"
             />
           </label>
+
+          {mode === "signup" ? (
+            <div style={styles.ruleBox}>パスワードは6文字以上の半角英数字で入力してください。</div>
+          ) : null}
 
           <button type="submit" style={styles.primaryButton} disabled={loading}>
             {loading ? "処理中..." : mode === "login" ? "ログイン" : "登録する"}
@@ -217,6 +241,13 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "16px",
     boxSizing: "border-box",
     background: "#fff",
+  },
+  ruleBox: {
+    background: "linear-gradient(135deg, #eef6ff 0%, #dbeafe 100%)",
+    color: "#1d4ed8",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontWeight: 700,
   },
   primaryButton: {
     background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
