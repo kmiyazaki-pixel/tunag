@@ -46,8 +46,9 @@ export default async function HomePage() {
     );
   }
 
-  const schedulerUrl =
-  process.env.NEXT_PUBLIC_SCHEDULER_APP_URL || "https://vital-scheduler1.onrender.com/calendar/month/";
+const schedulerUrl =
+  (process.env.NEXT_PUBLIC_SCHEDULER_APP_URL || "https://vital-scheduler.vercel.app") +
+  "/calendar/month";
   
   const posts = ((data ?? []) as PostSummary[]).filter((post) => post.status === "published");
 
