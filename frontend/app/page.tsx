@@ -1,6 +1,9 @@
+"use client";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import PostListClient from "@/components/post-list-client";
 import PortalSidebar from "@/components/portal-sidebar";
@@ -24,36 +27,36 @@ type PostSummary = {
   actual_read_count: number;
 };
 
-export default async function HomePage() {
-  const { data, error } = await supabase
-    .from("post_summary")
-    .select("*")
-    .order("is_pinned", { ascending: false })
-    .order("published_at", { ascending: false });
+export default function HomePage() {
+  const [posts, setPosts] = useState<PostSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  if (error) {
-    return (
-      <main style={styles.page}>
-        <div style={styles.bgCircle1} />
-        <div style={styles.bgCircle2} />
-        <div style={styles.bgCircle3} />
+  useEffect(() => {
+    async function loadPosts() {
+      const { data, error } = await supabase
+        .from("post_summary")
+        .select("*")
+        .order("is_pinned", { ascending: false })
+        .order("published_at", { ascending: false });
 
-        <PortalSidebar />
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
 
-        <div style={styles.mainArea}>
-          <div style={styles.container}>
-            <section style={styles.heroCard}>
-              <div style={styles.kicker}>INTERNAL PORTAL</div>
-              <h1 style={styles.title}>社内ポータル</h1>
-              <p style={styles.error}>データ取得に失敗しました: {error.message}</p>
-            </section>
-          </div>
-        </div>
-      </main>
-    );
-  }
+      const filtered = ((data ?? []) as PostSummary[]).filter(
+        (post) => post.status === "published"
+      );
 
-  const posts = ((data ?? []) as PostSummary[]).filter((post) => post.status === "published");
+      setPosts(filtered);
+      setLoading(false);
+    }
+
+    loadPosts();
+  }, []);
 
   const totalPosts = posts.length;
   const totalReads = posts.reduce((sum, post) => sum + (post.actual_read_count ?? 0), 0);
@@ -62,42 +65,99 @@ export default async function HomePage() {
 
   return (
     <main style={styles.page}>
+      <style jsx>{`
+        @media (max-width: 959px) {
+          .portal-sidebar-mobile {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 82vw !important;
+            min-width: 82vw !important;
+            max-width: 82vw !important;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease;
+            z-index: 40;
+          }
+
+          .portal-main-mobile {
+            padding: 16px !important;
+          }
+
+          .portal-menu-button {
+            display: inline-flex !important;
+          }
+        }
+
+        @media (min-width: 960px) {
+          .portal-menu-button {
+            display: none !important;
+          }
+        }
+      `}</style>
+
       <div style={styles.bgCircle1} />
       <div style={styles.bgCircle2} />
       <div style={styles.bgCircle3} />
 
-      <PortalSidebar />
+      {menuOpen && <div style={styles.backdrop} onClick={() => setMenuOpen(false)} />}
 
-      <div style={styles.mainArea}>
+      <div className="portal-sidebar-mobile" style={styles.sidebarWrap}>
+        <PortalSidebar mobileOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+      </div>
+
+      <div className="portal-main-mobile" style={styles.mainArea}>
         <div style={styles.container}>
-          <section style={styles.heroCard}>
-            <div style={styles.kicker}>INTERNAL PORTAL</div>
-            <h1 style={styles.title}>社内ポータル</h1>
-            <p style={styles.subtitle}>お知らせ・必読・コメントをまとめて確認</p>
-          </section>
-
-          <section style={styles.dashboard}>
-            <div style={{ ...styles.card, ...styles.cardPink }}>
-              <div style={styles.cardLabel}>投稿数</div>
-              <div style={styles.cardValue}>{totalPosts}</div>
-            </div>
-            <div style={{ ...styles.card, ...styles.cardBlue }}>
-              <div style={styles.cardLabel}>既読数合計</div>
-              <div style={styles.cardValue}>{totalReads}</div>
-            </div>
-            <div style={{ ...styles.card, ...styles.cardGreen }}>
-              <div style={styles.cardLabel}>コメント合計</div>
-              <div style={styles.cardValue}>{totalComments}</div>
-            </div>
-            <div style={{ ...styles.card, ...styles.cardYellow }}>
-              <div style={styles.cardLabel}>リアクション合計</div>
-              <div style={styles.cardValue}>{totalReactions}</div>
-            </div>
-          </section>
-
-          <div style={styles.listWrap}>
-            <PostListClient posts={posts} />
+          <div style={styles.mobileHeader}>
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              className="portal-menu-button"
+              style={styles.menuButton}
+            >
+              ☰
+            </button>
+            <div style={styles.mobileHeaderTitle}>社内ポータル</div>
           </div>
+
+          {error ? (
+            <section style={styles.heroCard}>
+              <div style={styles.kicker}>INTERNAL PORTAL</div>
+              <h1 style={styles.title}>社内ポータル</h1>
+              <p style={styles.error}>データ取得に失敗しました: {error}</p>
+            </section>
+          ) : (
+            <>
+              <section style={styles.heroCard}>
+                <div style={styles.kicker}>INTERNAL PORTAL</div>
+                <h1 style={styles.title}>社内ポータル</h1>
+                <p style={styles.subtitle}>お知らせ・必読・コメントをまとめて確認</p>
+              </section>
+
+              <section style={styles.dashboard}>
+                <div style={{ ...styles.card, ...styles.cardPink }}>
+                  <div style={styles.cardLabel}>投稿数</div>
+                  <div style={styles.cardValue}>{totalPosts}</div>
+                </div>
+                <div style={{ ...styles.card, ...styles.cardBlue }}>
+                  <div style={styles.cardLabel}>既読数合計</div>
+                  <div style={styles.cardValue}>{totalReads}</div>
+                </div>
+                <div style={{ ...styles.card, ...styles.cardGreen }}>
+                  <div style={styles.cardLabel}>コメント合計</div>
+                  <div style={styles.cardValue}>{totalComments}</div>
+                </div>
+                <div style={{ ...styles.card, ...styles.cardYellow }}>
+                  <div style={styles.cardLabel}>リアクション合計</div>
+                  <div style={styles.cardValue}>{totalReactions}</div>
+                </div>
+              </section>
+
+              <div style={styles.listWrap}>
+                {loading ? <div style={styles.loading}>読み込み中...</div> : <PostListClient posts={posts} />}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </main>
@@ -143,6 +203,16 @@ const styles: Record<string, React.CSSProperties> = {
     background: "rgba(34, 197, 94, 0.12)",
     filter: "blur(10px)",
   },
+  backdrop: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(15, 23, 42, 0.30)",
+    zIndex: 20,
+  },
+  sidebarWrap: {
+    position: "relative",
+    zIndex: 30,
+  },
   mainArea: {
     flex: 1,
     minWidth: 0,
@@ -155,6 +225,30 @@ const styles: Record<string, React.CSSProperties> = {
     margin: "0 auto",
     position: "relative",
     zIndex: 1,
+  },
+  mobileHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "16px",
+  },
+  mobileHeaderTitle: {
+    fontSize: "20px",
+    fontWeight: 800,
+    color: "#1f2340",
+  },
+  menuButton: {
+    display: "none",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(99,102,241,0.16)",
+    borderRadius: "12px",
+    background: "#fff",
+    width: "44px",
+    height: "44px",
+    cursor: "pointer",
+    fontSize: "22px",
+    fontWeight: 800,
   },
   heroCard: {
     background: "linear-gradient(180deg, #ffffff 0%, #fffafb 100%)",
@@ -222,6 +316,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   listWrap: {
     borderRadius: "24px",
+  },
+  loading: {
+    background: "#fff",
+    borderRadius: "18px",
+    padding: "20px",
   },
   error: {
     color: "#991b1b",
