@@ -13,12 +13,10 @@ type UserInfo = {
 } | null;
 
 type PortalSidebarProps = {
-  mobileOpen?: boolean;
   onClose?: () => void;
 };
 
 export default function PortalSidebar({
-  mobileOpen = false,
   onClose,
 }: PortalSidebarProps) {
   const [userInfo, setUserInfo] = useState<UserInfo>(null);
@@ -93,12 +91,7 @@ export default function PortalSidebar({
   }
 
   return (
-    <aside
-      style={{
-        ...styles.sidebar,
-        ...(mobileOpen ? styles.sidebarMobileOpen : {}),
-      }}
-    >
+    <aside style={styles.sidebar}>
       <div>
         <div style={styles.kicker}>PORTAL</div>
         <div style={styles.brand}>社内ポータル</div>
@@ -171,9 +164,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: "relative",
     zIndex: 30,
   },
-  sidebarMobileOpen: {
-    transform: "translateX(0)",
-  },
+  
   kicker: {
     display: "inline-block",
     padding: "6px 12px",
