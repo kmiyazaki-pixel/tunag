@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { formatDateJST } from "@/lib/format-date";
 import PostListClient from "@/components/post-list-client";
 import AuthStatus from "@/components/auth-status";
+import SchedulerLinkButton from "@/components/scheduler-link-button";
 
 type PostSummary = {
   id: number;
@@ -72,9 +73,7 @@ const schedulerUrl =
           </div>
 
           <div style={styles.headerActions}>
-            <Link href={schedulerUrl} style={styles.secondaryButton}>
-             スケジュール
-             </Link>
+            <SchedulerLinkButton />
             <Link href="/admin/new" style={styles.primaryButton}>
               新規投稿
             </Link>
