@@ -5,8 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { formatDateJST } from "@/lib/format-date";
 import PostListClient from "@/components/post-list-client";
-import AuthStatus from "@/components/auth-status";
-import SchedulerLinkButton from "@/components/scheduler-link-button";
+import PortalSidebar from "@/components/portal-sidebar";
 
 type PostSummary = {
   id: number;
@@ -36,21 +35,26 @@ export default async function HomePage() {
 
   if (error) {
     return (
-      <main style={styles.main}>
+      <main style={styles.page}>
         <div style={styles.bgCircle1} />
         <div style={styles.bgCircle2} />
-        <div style={styles.container}>
-          <h1 style={styles.title}>社内ポータル</h1>
-          <p style={styles.error}>データ取得に失敗しました: {error.message}</p>
+        <div style={styles.bgCircle3} />
+
+        <PortalSidebar />
+
+        <div style={styles.mainArea}>
+          <div style={styles.container}>
+            <section style={styles.heroCard}>
+              <div style={styles.kicker}>INTERNAL PORTAL</div>
+              <h1 style={styles.title}>社内ポータル</h1>
+              <p style={styles.error}>データ取得に失敗しました: {error.message}</p>
+            </section>
+          </div>
         </div>
       </main>
     );
   }
 
-const schedulerUrl =
-  (process.env.NEXT_PUBLIC_SCHEDULER_APP_URL || "https://vital-scheduler.vercel.app") +
-  "/calendar/month";
-  
   const posts = ((data ?? []) as PostSummary[]).filter((post) => post.status === "published");
 
   const totalPosts = posts.length;
@@ -59,52 +63,43 @@ const schedulerUrl =
   const totalReactions = posts.reduce((sum, post) => sum + (post.reaction_count ?? 0), 0);
 
   return (
-    <main style={styles.main}>
+    <main style={styles.page}>
       <div style={styles.bgCircle1} />
       <div style={styles.bgCircle2} />
       <div style={styles.bgCircle3} />
 
-      <div style={styles.container}>
-        <header style={styles.header}>
-          <div>
+      <PortalSidebar />
+
+      <div style={styles.mainArea}>
+        <div style={styles.container}>
+          <section style={styles.heroCard}>
             <div style={styles.kicker}>INTERNAL PORTAL</div>
             <h1 style={styles.title}>社内ポータル</h1>
             <p style={styles.subtitle}>お知らせ・必読・コメントをまとめて確認</p>
-          </div>
+          </section>
 
-          <div style={styles.headerActions}>
-            <SchedulerLinkButton />
-            <Link href="/admin/new" style={styles.primaryButton}>
-              新規投稿
-            </Link>
-            <Link href="/admin/audit-logs" style={styles.secondaryButton}>
-             監査ログ
-            </Link>
-            <AuthStatus />
-          </div>
-        </header>
+          <section style={styles.dashboard}>
+            <div style={{ ...styles.card, ...styles.cardPink }}>
+              <div style={styles.cardLabel}>投稿数</div>
+              <div style={styles.cardValue}>{totalPosts}</div>
+            </div>
+            <div style={{ ...styles.card, ...styles.cardBlue }}>
+              <div style={styles.cardLabel}>既読数合計</div>
+              <div style={styles.cardValue}>{totalReads}</div>
+            </div>
+            <div style={{ ...styles.card, ...styles.cardGreen }}>
+              <div style={styles.cardLabel}>コメント合計</div>
+              <div style={styles.cardValue}>{totalComments}</div>
+            </div>
+            <div style={{ ...styles.card, ...styles.cardYellow }}>
+              <div style={styles.cardLabel}>リアクション合計</div>
+              <div style={styles.cardValue}>{totalReactions}</div>
+            </div>
+          </section>
 
-        <section style={styles.dashboard}>
-          <div style={{ ...styles.card, ...styles.cardPink }}>
-            <div style={styles.cardLabel}>投稿数</div>
-            <div style={styles.cardValue}>{totalPosts}</div>
+          <div style={styles.listWrap}>
+            <PostListClient posts={posts} />
           </div>
-          <div style={{ ...styles.card, ...styles.cardBlue }}>
-            <div style={styles.cardLabel}>既読数合計</div>
-            <div style={styles.cardValue}>{totalReads}</div>
-          </div>
-          <div style={{ ...styles.card, ...styles.cardGreen }}>
-            <div style={styles.cardLabel}>コメント合計</div>
-            <div style={styles.cardValue}>{totalComments}</div>
-          </div>
-          <div style={{ ...styles.card, ...styles.cardYellow }}>
-            <div style={styles.cardLabel}>リアクション合計</div>
-            <div style={styles.cardValue}>{totalReactions}</div>
-          </div>
-        </section>
-
-        <div style={styles.listWrap}>
-          <PostListClient posts={posts} />
         </div>
       </div>
     </main>
@@ -112,11 +107,11 @@ const schedulerUrl =
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  main: {
+  page: {
     minHeight: "100vh",
+    display: "flex",
     background:
       "linear-gradient(180deg, #f8f7ff 0%, #eef4ff 45%, #fdfcff 100%)",
-    padding: "32px 16px",
     position: "relative",
     overflow: "hidden",
   },
@@ -150,25 +145,25 @@ const styles: Record<string, React.CSSProperties> = {
     background: "rgba(34, 197, 94, 0.12)",
     filter: "blur(10px)",
   },
+  mainArea: {
+    flex: 1,
+    minWidth: 0,
+    padding: "24px",
+    position: "relative",
+    zIndex: 1,
+  },
   container: {
     maxWidth: "1100px",
     margin: "0 auto",
     position: "relative",
     zIndex: 1,
   },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "16px",
+  heroCard: {
+    background: "linear-gradient(180deg, #ffffff 0%, #fffafb 100%)",
+    borderRadius: "24px",
+    padding: "24px",
+    boxShadow: "0 14px 30px rgba(91, 98, 133, 0.10)",
     marginBottom: "24px",
-    flexWrap: "wrap",
-  },
-  headerActions: {
-    display: "flex",
-    gap: "12px",
-    alignItems: "center",
-    flexWrap: "wrap",
   },
   kicker: {
     display: "inline-block",
@@ -227,16 +222,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     color: "#1f2340",
   },
-  primaryButton: {
-    display: "inline-block",
-    background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
-    color: "#fff",
-    textDecoration: "none",
-    padding: "12px 18px",
-    borderRadius: "12px",
-    fontWeight: 800,
-    boxShadow: "0 8px 20px rgba(99, 102, 241, 0.28)",
-  },
   listWrap: {
     borderRadius: "24px",
   },
@@ -245,15 +230,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#fee2e2",
     padding: "16px",
     borderRadius: "14px",
-  },
-  secondaryButton: {
-  display: "inline-block",
-  background: "linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%)",
-  color: "#9a3412",
-  textDecoration: "none",
-  padding: "12px 16px",
-  borderRadius: "12px",
-  fontWeight: 800,
-  boxShadow: "0 8px 18px rgba(251, 146, 60, 0.18)",
+    marginTop: "12px",
   },
 };
