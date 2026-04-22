@@ -12,7 +12,15 @@ type UserInfo = {
   email: string | null;
 } | null;
 
-export default function PortalSidebar() {
+type PortalSidebarProps = {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+};
+
+export default function PortalSidebar({
+  mobileOpen = false,
+  onClose,
+}: PortalSidebarProps) {
   const [userInfo, setUserInfo] = useState<UserInfo>(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -85,7 +93,12 @@ export default function PortalSidebar() {
   }
 
   return (
-    <aside style={styles.sidebar}>
+    <aside
+      style={{
+        ...styles.sidebar,
+        ...(mobileOpen ? styles.sidebarMobileOpen : {}),
+      }}
+    >
       <div>
         <div style={styles.kicker}>PORTAL</div>
         <div style={styles.brand}>社内ポータル</div>
@@ -95,15 +108,22 @@ export default function PortalSidebar() {
         </div>
 
         <nav style={styles.nav}>
-          <Link href="/admin/new" style={styles.navLinkBlue}>
+          <Link href="/admin/new" style={styles.navLinkBlue} onClick={onClose}>
             新規投稿
           </Link>
 
-          <Link href="/admin/audit-logs" style={styles.navLinkGreen}>
+          <Link href="/admin/audit-logs" style={styles.navLinkGreen} onClick={onClose}>
             監査ログ
           </Link>
 
-          <button type="button" onClick={handleSchedulerClick} style={styles.navLinkOrange}>
+          <button
+            type="button"
+            onClick={async () => {
+              onClose?.();
+              await handleSchedulerClick();
+            }}
+            style={styles.navLinkOrange}
+          >
             スケジュール
           </button>
         </nav>
@@ -148,6 +168,11 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     justifyContent: "space-between",
     gap: "20px",
+    position: "relative",
+    zIndex: 30,
+  },
+  sidebarMobileOpen: {
+    transform: "translateX(0)",
   },
   kicker: {
     display: "inline-block",
