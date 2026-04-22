@@ -74,9 +74,15 @@ export default function PortalHomeShell({
 
       {menuOpen && <div style={styles.backdrop} onClick={() => setMenuOpen(false)} />}
 
-      <div className="portal-sidebar-mobile" style={styles.sidebarWrap}>
-        <PortalSidebar mobileOpen={menuOpen} onClose={() => setMenuOpen(false)} />
-      </div>
+      <div
+  className="portal-sidebar-mobile"
+  style={{
+    ...styles.sidebarWrap,
+    ...(menuOpen ? styles.sidebarWrapOpen : {}),
+  }}
+>
+  <PortalSidebar onClose={() => setMenuOpen(false)} />
+</div>
 
       <div className="portal-main-mobile" style={styles.mainArea}>
         <div style={styles.container}>
@@ -175,6 +181,9 @@ const styles: Record<string, React.CSSProperties> = {
     position: "relative",
     zIndex: 30,
   },
+  sidebarWrapOpen: {
+  transform: "translateX(0)",
+　},
   mainArea: {
     flex: 1,
     minWidth: 0,
