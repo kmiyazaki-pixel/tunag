@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 import PortalSidebar from "@/components/portal-sidebar";
 import PostListClient from "@/components/post-list-client";
 
@@ -23,12 +25,68 @@ type PostSummary = {
   actual_read_count: number;
 };
 
+type UserInfo = {
+  name: string;
+  email: string | null;
+} | null;
+
 export default function PortalHomeShell({
   posts,
 }: {
   posts: PostSummary[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userInfo, setUserInfo] = useState<UserInfo>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!mounted) return;
+
+      if (!user) {
+        setUserInfo(null);
+        return;
+      }
+
+      const name =
+        (user.user_metadata?.name as string | undefined)?.trim() ||
+        user.email?.split("@")[0] ||
+        "ユーザー";
+
+      setUserInfo({
+        name,
+        email: user.email ?? null,
+      });
+    }
+
+    loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      loadUser();
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleLogout() {
+    try {
+      setLoggingOut(true);
+      await supabase.auth.signOut();
+    } finally {
+      window.location.href = "/login";
+    }
+  }
 
   const totalPosts = posts.length;
   const totalReads = posts.reduce((sum, post) => sum + (post.actual_read_count ?? 0), 0);
@@ -59,6 +117,11 @@ export default function PortalHomeShell({
           .portal-menu-button {
             display: inline-flex !important;
           }
+
+          .portal-top-actions {
+            width: 100%;
+            justify-content: flex-start !important;
+          }
         }
 
         @media (min-width: 960px) {
@@ -75,14 +138,14 @@ export default function PortalHomeShell({
       {menuOpen && <div style={styles.backdrop} onClick={() => setMenuOpen(false)} />}
 
       <div
-  className="portal-sidebar-mobile"
-  style={{
-    ...styles.sidebarWrap,
-    ...(menuOpen ? styles.sidebarWrapOpen : {}),
-  }}
->
-  <PortalSidebar onClose={() => setMenuOpen(false)} />
-</div>
+        className="portal-sidebar-mobile"
+        style={{
+          ...styles.sidebarWrap,
+          ...(menuOpen ? styles.sidebarWrapOpen : {}),
+        }}
+      >
+        <PortalSidebar onClose={() => setMenuOpen(false)} />
+      </div>
 
       <div className="portal-main-mobile" style={styles.mainArea}>
         <div style={styles.container}>
@@ -99,9 +162,36 @@ export default function PortalHomeShell({
           </div>
 
           <section style={styles.heroCard}>
-            <div style={styles.kicker}>INTERNAL PORTAL</div>
-            <h1 style={styles.title}>社内ポータル</h1>
-            <p style={styles.subtitle}>お知らせ・必読・コメントをまとめて確認</p>
+            <div style={styles.heroTop}>
+              <div>
+                <div style={styles.kicker}>INTERNAL PORTAL</div>
+                <h1 style={styles.title}>社内ポータル</h1>
+                <p style={styles.subtitle}>お知らせ・必読・コメントをまとめて確認</p>
+              </div>
+
+              <div className="portal-top-actions" style={styles.topActions}>
+                <Link href="/admin/new" style={styles.primaryButton}>
+                  新規投稿
+                </Link>
+
+                <Link href="/admin/audit-logs" style={styles.secondaryButton}>
+                  監査ログ
+                </Link>
+
+                <div style={styles.userBadge}>
+                  ログイン中: {userInfo?.name || userInfo?.email || "ゲスト"}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  style={loggingOut ? styles.logoutDisabled : styles.logoutButton}
+                >
+                  {loggingOut ? "ログアウト中..." : "ログアウト"}
+                </button>
+              </div>
+            </div>
           </section>
 
           <section style={styles.dashboard}>
@@ -182,8 +272,8 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 30,
   },
   sidebarWrapOpen: {
-  transform: "translateX(0)",
-　},
+    transform: "translateX(0)",
+  },
   mainArea: {
     flex: 1,
     minWidth: 0,
@@ -228,6 +318,13 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 30px rgba(91, 98, 133, 0.10)",
     marginBottom: "24px",
   },
+  heroTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "16px",
+    flexWrap: "wrap",
+  },
   kicker: {
     display: "inline-block",
     padding: "6px 12px",
@@ -249,6 +346,62 @@ const styles: Record<string, React.CSSProperties> = {
     margin: "10px 0 0",
     color: "#5b6285",
     fontSize: "15px",
+  },
+  topActions: {
+    display: "flex",
+    gap: "12px",
+    alignItems: "center",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  },
+  primaryButton: {
+    display: "inline-block",
+    background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+    color: "#fff",
+    textDecoration: "none",
+    padding: "12px 18px",
+    borderRadius: "12px",
+    fontWeight: 800,
+    boxShadow: "0 8px 20px rgba(99, 102, 241, 0.28)",
+  },
+  secondaryButton: {
+    display: "inline-block",
+    background: "linear-gradient(135deg, #ecfdf3 0%, #d1fae5 100%)",
+    color: "#166534",
+    textDecoration: "none",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    fontWeight: 800,
+    boxShadow: "0 8px 18px rgba(16, 185, 129, 0.16)",
+  },
+  userBadge: {
+    background: "linear-gradient(135deg, #eef6ff 0%, #dbeafe 100%)",
+    color: "#1d4ed8",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    fontWeight: 800,
+    boxShadow: "0 8px 18px rgba(59, 130, 246, 0.12)",
+  },
+  logoutButton: {
+    border: "none",
+    borderRadius: "12px",
+    background: "linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%)",
+    color: "#9a3412",
+    padding: "12px 16px",
+    cursor: "pointer",
+    fontWeight: 800,
+    boxShadow: "0 8px 18px rgba(251, 146, 60, 0.18)",
+  },
+  logoutDisabled: {
+    border: "none",
+    borderRadius: "12px",
+    background: "linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%)",
+    color: "#9a3412",
+    padding: "12px 16px",
+    cursor: "not-allowed",
+    fontWeight: 800,
+    opacity: 0.6,
+    boxShadow: "0 8px 18px rgba(251, 146, 60, 0.18)",
   },
   dashboard: {
     display: "grid",
